@@ -49,8 +49,10 @@ export default function History() {
                 <span className="tag" style={{ fontSize: '11px', padding: '2px 8px' }}>{g.ruleset.replace(/_/g, ' ')}</span>
               </div>
               <div style={{ fontSize: '13px', color: 'var(--muted)' }}>{formatDate(g.started_at)}</div>
-              {g.winner_name && (
-                <div style={{ fontSize: '13px', color: 'var(--green)', marginTop: '2px' }}>🏆 {g.winner_name}</div>
+              {(g.winner_name || g.winner_team_name) && (
+                <div style={{ fontSize: '13px', color: 'var(--green)', marginTop: '2px' }}>
+                  🏆 {g.mode === 'teams' ? g.winner_team_name : g.winner_name}
+                </div>
               )}
             </div>
             <div style={{ textAlign: 'right', color: 'var(--muted)', fontSize: '12px' }}>

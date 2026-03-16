@@ -234,12 +234,14 @@ router.get('/', async (req, res) => {
   try {
     const result = await query(
       `SELECT g.id, g.mode, g.ruleset, g.status, g.started_at, g.finished_at,
-              u.name as winner_name
-       FROM games g
-       LEFT JOIN users u ON u.id = g.winner_id
-       WHERE g.status = 'finished'
-       ORDER BY g.finished_at DESC
-       LIMIT $1 OFFSET $2`,
+      u.name as winner_name,
+      t.name as winner_team_name
+      FROM games g
+      LEFT JOIN users u ON u.id = g.winner_id
+      LEFT JOIN teams t ON t.id = g.winner_team_id
+      WHERE g.status = 'finished'
+      ORDER BY g.finished_at DESC
+      LIMIT $1 OFFSET $2`,
       [limit, offset]
     );
     res.json(result.rows);
