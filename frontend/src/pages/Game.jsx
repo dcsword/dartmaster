@@ -179,11 +179,15 @@ export default function Game() {
       if (game.mode === "singles") {
         setCurrentPlayerIdx((prev) => (prev + 1) % game.players.length);
       } else {
-        const team = game.teams[currentTeamIdx];
-        const nextInTeam = (currentPlayerInTeam + 1) % team.players.length;
-        if (nextInTeam === 0) {
-          setCurrentTeamIdx((prev) => (prev + 1) % game.teams.length);
+        // Always switch to next team first
+        const nextTeamIdx = (currentTeamIdx + 1) % game.teams.length;
+
+        // Only advance player within team after all teams have had their turn
+        // i.e. when we wrap back to team 0
+        if (nextTeamIdx === 0) {
+          setCurrentPlayerInTeam(prev => (prev + 1) % game.teams[0].players.length);
         }
+        
         setCurrentPlayerInTeam(nextInTeam);
       }
     } catch (err) {
