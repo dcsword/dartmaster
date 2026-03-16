@@ -112,6 +112,18 @@ export default function Game() {
     setError("");
   }
 
+  function advanceTurn() {
+    if (game.mode === 'singles') {
+      setCurrentPlayerIdx(prev => (prev + 1) % game.players.length);
+    } else {
+      const nextTeamIdx = (currentTeamIdx + 1) % game.teams.length;
+      if (nextTeamIdx === 0) {
+        setCurrentPlayerInTeam(prev => (prev + 1) % game.teams[0].players.length);
+      }
+      setCurrentTeamIdx(nextTeamIdx);
+    }
+  }
+
   function handleMiss() {
     addDart(0, 1);
   }
@@ -176,20 +188,8 @@ export default function Game() {
       setMultiplier(1);
 
       // Advance turn
-      if (game.mode === "singles") {
-        setCurrentPlayerIdx((prev) => (prev + 1) % game.players.length);
-      } else {
-        // Always switch to next team first
-        const nextTeamIdx = (currentTeamIdx + 1) % game.teams.length;
+      advanceTurn();
 
-        // Only advance player within team after all teams have had their turn
-        // i.e. when we wrap back to team 0
-        if (nextTeamIdx === 0) {
-          setCurrentPlayerInTeam(prev => (prev + 1) % game.teams[0].players.length);
-        }
-        
-        setCurrentPlayerInTeam(nextInTeam);
-      }
     } catch (err) {
       setError(err.message);
     } finally {
@@ -212,15 +212,7 @@ export default function Game() {
       setGame(updated);
       setDarts([]);
       setInputVal("");
-      if (game.mode === "singles") {
-        setCurrentPlayerIdx((prev) => (prev + 1) % game.players.length);
-      } else {
-        const team = game.teams[currentTeamIdx];
-        const nextInTeam = (currentPlayerInTeam + 1) % team.players.length;
-        if (nextInTeam === 0)
-          setCurrentTeamIdx((prev) => (prev + 1) % game.teams.length);
-        setCurrentPlayerInTeam(nextInTeam);
-      }
+      advanceTurn();
     } catch (err) {
       setError(err.message);
     } finally {
