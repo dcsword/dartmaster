@@ -148,7 +148,12 @@ export default function Game() {
       const player = getCurrentPlayer();
       const team = getCurrentTeam();
       const body = {
-        darts: dartsToSubmit.map(d => d.value),
+        darts: dartsToSubmit.map(d => {
+          if (d.isBull) return d.value;        // 'Bull' or '25'
+          if (d.multiplier === 2) return d.value;  // 'D16' etc
+          if (d.multiplier === 3) return d.value;  // 'T20' etc
+          return d.score;                       // plain number: 6, 20 etc
+        }),
         playerId: player?.id,
         teamId: team?.id,
       };
