@@ -182,6 +182,8 @@ export function parseDart(input) {
   if (input === null || input === undefined) return null;
 
   if (typeof input === 'number') {
+    if (input === 50) return { score: 50, multiplier: 2, isBull: true };
+    if (input === 25) return { score: 25, multiplier: 1, isBull: true };
     if (input < 0 || input > 60) throw new Error(`Invalid dart score: ${input}`);
     return { score: input, multiplier: 1, isBull: false };
   }
