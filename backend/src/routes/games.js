@@ -74,6 +74,67 @@ router.post('/', optionalAuth, async (req, res) => {
   }
 });
 
+    // GET /api/games/:id/detail — full turn by turn breakdown
+    router.get('/:id/detail', async (req, res) => {
+      try {
+        const gameResult = await query('SELECT * FROM games WHERE id = $1', [req.params.id]);
+        if (!gameResult.rows.length) return res.status(404).json({ error: 'Game not found' });
+        const game = gameResult.rows[0];
+    
+        // Get all rounds with player/team info and their darts
+        const rounds = await query(
+          `SELECT
+            r.id, r.round_number, r.score_before, r.score_after, r.is_bust, r.is_winning, r.created_at,
+            u.name as player_name,
+            t.name as team_name,
+            json_agg(
+              json_build_object(
+                'dart_number', d.dart_number,
+                'score', d.score,
+                'multiplier', d.multiplier,
+                'is_bull', d.is_bull
+              ) ORDER BY d.dart_number
+            ) as darts
+           FROM rounds r
+           LEFT JOIN users u ON u.id = r.player_id
+           LEFT JOIN teams t ON t.id = r.team_id
+           JOIN darts d ON d.round_id = r.id
+           GROUP BY r.id, u.name, t.name
+           ORDER BY r.created_at ASC`,
+          []
+        );
+    
+        // Filter by game id
+        const allRounds = await query(
+          `SELECT
+            r.id, r.round_number, r.score_before, r.score_after, r.is_bust, r.is_winning, r.created_at,
+            u.name as player_name,
+            t.name as team_name,
+            json_agg(
+              json_build_object(
+                'dart_number', d.dart_number,
+                'score', d.score,
+                'multiplier', d.multiplier,
+                'is_bull', d.is_bull
+              ) ORDER BY d.dart_number
+            ) as darts
+           FROM rounds r
+           LEFT JOIN users u ON u.id = r.player_id
+           LEFT JOIN teams t ON t.id = r.team_id
+           JOIN darts d ON d.round_id = r.id
+           WHERE r.game_id = $1
+           GROUP BY r.id, u.name, t.name
+           ORDER BY r.created_at ASC`,
+          [req.params.id]
+        );
+    
+        res.json({ game, rounds: allRounds.rows });
+      } catch (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Server error' });
+      }
+    });
+    
 // ─── GET /api/games/:id — get current game state ────────────────────────────
 router.get('/:id', async (req, res) => {
   try {
@@ -118,66 +179,7 @@ router.post('/:id/turn', async (req, res) => {
       scoreBefore = r.rows[0].score;
     }
 
-    // GET /api/games/:id/detail — full turn by turn breakdown
-router.get('/:id/detail', async (req, res) => {
-  try {
-    const gameResult = await query('SELECT * FROM games WHERE id = $1', [req.params.id]);
-    if (!gameResult.rows.length) return res.status(404).json({ error: 'Game not found' });
-    const game = gameResult.rows[0];
 
-    // Get all rounds with player/team info and their darts
-    const rounds = await query(
-      `SELECT
-        r.id, r.round_number, r.score_before, r.score_after, r.is_bust, r.is_winning, r.created_at,
-        u.name as player_name,
-        t.name as team_name,
-        json_agg(
-          json_build_object(
-            'dart_number', d.dart_number,
-            'score', d.score,
-            'multiplier', d.multiplier,
-            'is_bull', d.is_bull
-          ) ORDER BY d.dart_number
-        ) as darts
-       FROM rounds r
-       LEFT JOIN users u ON u.id = r.player_id
-       LEFT JOIN teams t ON t.id = r.team_id
-       JOIN darts d ON d.round_id = r.id
-       GROUP BY r.id, u.name, t.name
-       ORDER BY r.created_at ASC`,
-      []
-    );
-
-    // Filter by game id
-    const allRounds = await query(
-      `SELECT
-        r.id, r.round_number, r.score_before, r.score_after, r.is_bust, r.is_winning, r.created_at,
-        u.name as player_name,
-        t.name as team_name,
-        json_agg(
-          json_build_object(
-            'dart_number', d.dart_number,
-            'score', d.score,
-            'multiplier', d.multiplier,
-            'is_bull', d.is_bull
-          ) ORDER BY d.dart_number
-        ) as darts
-       FROM rounds r
-       LEFT JOIN users u ON u.id = r.player_id
-       LEFT JOIN teams t ON t.id = r.team_id
-       JOIN darts d ON d.round_id = r.id
-       WHERE r.game_id = $1
-       GROUP BY r.id, u.name, t.name
-       ORDER BY r.created_at ASC`,
-      [req.params.id]
-    );
-
-    res.json({ game, rounds: allRounds.rows });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Server error' });
-  }
-});
 
     // Process the turn through game logic
     const turnResult = processTurn(scoreBefore, darts, game.ruleset);
