@@ -41,7 +41,7 @@ export default function History() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
         {games.map(g => (
-          <div key={g.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate(`/game/${g.id}`)}>
+          <div key={g.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate(`/game/${g.id}/detail`)}>
             <div>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
                 <span style={{ fontFamily: 'Bebas Neue', fontSize: '18px' }}>501</span>

@@ -37,4 +37,5 @@ export const api = {
   getHistory: (limit = 20) => request('GET', `/games?limit=${limit}`),
   getCheckout: (gameId, score, ruleset) =>
     request('GET', `/games/${gameId}/checkout?score=${score}&ruleset=${ruleset}`),
+  getGameDetail: (id) => request('GET', `/games/${id}/detail`),  
 };

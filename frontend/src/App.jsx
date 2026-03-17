@@ -7,6 +7,7 @@ import Win from './pages/Win';
 import History from './pages/History';
 import Login from './pages/Login';
 import PlayerProfile from './pages/PlayerProfile';
+import GameDetail from './pages/GameDetail';
 import './index.css';
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/history" element={<History />} />
           <Route path="/login" element={<Login />} />
           <Route path="/player/:id" element={<PlayerProfile />} />
+          <Route path="/game/:id/detail" element={<GameDetail />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
