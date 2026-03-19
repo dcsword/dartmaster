@@ -28,6 +28,7 @@ export default function Game() {
   const [checkout, setCheckout] = useState(null);
   const [lastTurn, setLastTurn] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [legResult, setLegResult] = useState(null); // { legWon, setWon, winnerName }
 
   useEffect(() => {
     api
@@ -173,9 +174,25 @@ export default function Game() {
       const result = await api.submitTurn(id, body);
       setLastTurn(result);
 
-      if (result.gameStatus === "finished") {
+      if (result.gameStatus === 'finished') {
         navigate(`/win/${id}`, {
           state: { winnerName: player?.name, teamName: team?.name, result },
+        });
+        return;
+      }
+
+      // Leg won but match not over — show leg result overlay
+      if (result.legWon) {
+        const updated = await api.getGame(id);
+        setGame(updated);
+        setDarts([]);
+        setInputVal('');
+        setMultiplier(1);
+        setLegResult({
+          legWon: true,
+          setWon: result.setWon,
+          winnerName: player?.name || team?.name,
+          updatedGame: updated,
         });
         return;
       }
@@ -245,6 +262,75 @@ export default function Game() {
   const player = getCurrentPlayer();
   const team = getCurrentTeam();
 
+  // Leg result overlay
+  if (legResult) {
+    const g = legResult.updatedGame;
+    const multiSet = g?.sets_per_match > 1;
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px', textAlign: 'center', gap: '20px', background: 'var(--bg)' }}>
+        <div style={{ fontSize: '60px' }}>🎯</div>
+        <div>
+          <h2 style={{ fontSize: '36px', color: 'var(--accent)', lineHeight: 1, marginBottom: '6px' }}>{legResult.winnerName}</h2>
+          <p style={{ color: 'var(--text)', fontSize: '18px', fontWeight: 500 }}>
+            {legResult.setWon ? 'wins the set!' : 'wins the leg!'}
+          </p>
+        </div>
+
+        {/* Score summary */}
+        <div className="card" style={{ width: '100%', maxWidth: '360px', padding: '16px' }}>
+          {multiSet && (
+            <div style={{ marginBottom: '12px', paddingBottom: '12px', borderBottom: '1px solid var(--border)' }}>
+              <p style={{ color: 'var(--muted)', fontSize: '11px', letterSpacing: '0.1em', marginBottom: '8px' }}>SETS</p>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                {g.mode === 'singles'
+                  ? g.players?.map(p => (
+                    <div key={p.id} style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '2px' }}>{p.name}</p>
+                      <p style={{ fontSize: '28px', fontFamily: 'Bebas Neue', color: 'var(--text)' }}>{p.sets_won}</p>
+                    </div>
+                  ))
+                  : g.teams?.map(t => (
+                    <div key={t.id} style={{ textAlign: 'center' }}>
+                      <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '2px' }}>{t.name}</p>
+                      <p style={{ fontSize: '28px', fontFamily: 'Bebas Neue', color: 'var(--text)' }}>{t.sets_won}</p>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          )}
+          <div>
+            <p style={{ color: 'var(--muted)', fontSize: '11px', letterSpacing: '0.1em', marginBottom: '8px' }}>LEGS THIS SET</p>
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+              {g.mode === 'singles'
+                ? g.players?.map(p => (
+                  <div key={p.id} style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '2px' }}>{p.name}</p>
+                    <p style={{ fontSize: '28px', fontFamily: 'Bebas Neue', color: 'var(--text)' }}>{p.legs_won}</p>
+                  </div>
+                ))
+                : g.teams?.map(t => (
+                  <div key={t.id} style={{ textAlign: 'center' }}>
+                    <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '2px' }}>{t.name}</p>
+                    <p style={{ fontSize: '28px', fontFamily: 'Bebas Neue', color: 'var(--text)' }}>{t.legs_won}</p>
+                  </div>
+                ))
+              }
+            </div>
+          </div>
+        </div>
+
+        <button className="btn-primary" style={{ maxWidth: '360px', width: '100%', fontSize: '16px', padding: '16px' }}
+          onClick={() => {
+            setLegResult(null);
+            advanceTurn();
+          }}>
+          {legResult.setWon ? `Start set ${g.current_set} →` : `Start leg ${g.current_leg} →`}
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
@@ -257,33 +343,35 @@ export default function Game() {
       }}
     >
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <h1 style={{ fontSize: "28px", color: "var(--accent)" }}>501</h1>
-        <span
-          style={{
-            color: "var(--muted)",
-            fontSize: "12px",
-            letterSpacing: "0.08em",
-          }}
-        >
-          {game.ruleset.replace("_", " ").toUpperCase()}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h1 style={{ fontSize: '28px', color: 'var(--accent)' }}>501</h1>
+        <span style={{ color: 'var(--muted)', fontSize: '12px', letterSpacing: '0.08em' }}>
+          {game.ruleset.replace('_', ' ').toUpperCase()}
         </span>
-        <button
-          onClick={() => navigate("/")}
-          style={{
-            background: "none",
-            color: "var(--muted)",
-            fontSize: "12px",
-          }}
-        >
+        <button onClick={() => navigate('/')} style={{ background: 'none', color: 'var(--muted)', fontSize: '12px' }}>
           ✕ Quit
         </button>
+      </div>
+
+      {/* Match status bar */}
+      <div style={{ display: 'flex', gap: '10px', alignItems: 'center', background: 'var(--bg2)', borderRadius: 'var(--radius-sm)', padding: '8px 12px' }}>
+        {game.sets_per_match > 1 && (
+          <>
+            <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+              Set <strong style={{ color: 'var(--text)' }}>{game.current_set}</strong>/{game.sets_per_match}
+            </span>
+            <span style={{ color: 'var(--border)', fontSize: '11px' }}>·</span>
+          </>
+        )}
+        <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+          Leg <strong style={{ color: 'var(--text)' }}>{game.current_leg}</strong>/{game.legs_per_set}
+        </span>
+        <span style={{ color: 'var(--border)', fontSize: '11px' }}>·</span>
+        <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
+          {game.format === 'best_of' ? 'Best of' : 'First to'}
+        </span>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: '11px', color: 'var(--muted)' }}>Round {(game.recentRounds?.length || 0) + 1}</span>
       </div>
 
       {/* Scoreboard */}

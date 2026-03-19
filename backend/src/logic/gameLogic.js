@@ -397,6 +397,37 @@ export function nextTeamPlayer(currentTeamIndex, currentPlayerInTeam, teams) {
   return { teamIndex: currentTeamIndex, playerInTeam: nextPlayerInTeam };
 }
 
+// ─── Legs & Sets logic ───────────────────────────────────────────────────────
+
+/**
+ * How many legs/sets needed to win based on format.
+ * best_of 3 → need 2, first_to 3 → need 3
+ */
+export function winsNeeded(total, format) {
+  if (format === 'best_of') return Math.ceil(total / 2);
+  return total; // first_to
+}
+
+/**
+ * Check whether winning a leg also wins the set and/or match.
+ * @param {string} format        - 'best_of' | 'first_to'
+ * @param {number} legsPerSet    - total legs in a set
+ * @param {number} setsPerMatch  - total sets in a match
+ * @param {number} legWinsInSet  - legs won by this player/team IN CURRENT SET (before incrementing)
+ * @param {number} setsWon       - sets won so far (before incrementing)
+ * @returns {{ wonLeg, wonSet, wonMatch }}
+ */
+export function checkMatchProgress(format, legsPerSet, setsPerMatch, legWinsInSet, setsWon) {
+  const legsNeeded = winsNeeded(legsPerSet, format);
+  const setsNeeded = winsNeeded(setsPerMatch, format);
+
+  const wonLeg = true; // caller only calls this when a leg is won
+  const wonSet = (legWinsInSet + 1) >= legsNeeded;
+  const wonMatch = wonSet && (setsWon + 1) >= setsNeeded;
+
+  return { wonLeg, wonSet, wonMatch, legsNeeded, setsNeeded };
+}
+
 // ─── Stats helpers ───────────────────────────────────────────────────────────
 
 export function calcAvgPerDart(totalScore, totalDarts) {

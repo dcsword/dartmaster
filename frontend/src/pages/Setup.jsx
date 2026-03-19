@@ -8,55 +8,100 @@ const RULESETS = [
   { value: 'triple_out', label: 'Triple Out', desc: 'Must finish on a triple' },
 ];
 
-const COLORS = ['#e8593c', '#2dcb75', '#4a9eff', '#f0a050', '#b060e0', '#e0406080', '#40c0b0', '#e0b040'];
+const COLORS = ['#e8593c', '#2dcb75', '#4a9eff', '#f0a050', '#b060e0', '#40c0b0'];
+
+const PRESETS = [
+  { label: 'Casual', desc: '1 leg', format: 'best_of', legs: 1, sets: 1 },
+  { label: 'Bo3 legs', desc: 'Best of 3', format: 'best_of', legs: 3, sets: 1 },
+  { label: 'Bo5 legs', desc: 'Best of 5', format: 'best_of', legs: 5, sets: 1 },
+  { label: '3 sets', desc: 'First to 3 sets · 3 legs each', format: 'first_to', legs: 3, sets: 3 },
+  { label: 'Custom', desc: 'Set your own format', format: null, legs: null, sets: null },
+];
+
+function Stepper({ value, onChange, min = 1, max = 20 }) {
+  return (
+    <div className="stepper">
+      <button onClick={() => onChange(Math.max(min, value - 1))}>−</button>
+      <span>{value}</span>
+      <button onClick={() => onChange(Math.min(max, value + 1))}>+</button>
+    </div>
+  );
+}
 
 export default function Setup() {
   const navigate = useNavigate();
+
   const [mode, setMode] = useState('singles');
   const [ruleset, setRuleset] = useState('double_out');
-  const [players, setPlayers] = useState([{ name: '', color: COLORS[0] }, { name: '', color: COLORS[1] }]);
+  const [format, setFormat] = useState('best_of');
+  const [legsPerSet, setLegsPerSet] = useState(1);
+  const [setsPerMatch, setSetsPerMatch] = useState(1);
+  const [activePreset, setActivePreset] = useState('Casual');
+
+  const [players, setPlayers] = useState([
+    { name: '', color: COLORS[0] },
+    { name: '', color: COLORS[1] },
+  ]);
   const [teams, setTeams] = useState([
     { name: 'Team 1', players: [{ name: '', color: COLORS[0] }, { name: '', color: COLORS[1] }] },
     { name: 'Team 2', players: [{ name: '', color: COLORS[2] }, { name: '', color: COLORS[3] }] },
   ]);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  function applyPreset(preset) {
+    setActivePreset(preset.label);
+    if (preset.format) setFormat(preset.format);
+    if (preset.legs) setLegsPerSet(preset.legs);
+    if (preset.sets) setSetsPerMatch(preset.sets);
+  }
+
+  function matchSummary() {
+    const legsNeeded = format === 'best_of' ? Math.ceil(legsPerSet / 2) : legsPerSet;
+    const setsNeeded = format === 'best_of' ? Math.ceil(setsPerMatch / 2) : setsPerMatch;
+    const formatLabel = format === 'best_of' ? 'Best of' : 'First to';
+
+    if (setsPerMatch === 1) {
+      return `${formatLabel} ${legsPerSet} leg${legsPerSet > 1 ? 's' : ''} — first to ${legsNeeded} wins`;
+    }
+    return `${formatLabel} ${setsPerMatch} sets · ${formatLabel} ${legsPerSet} legs per set — first to ${setsNeeded} sets wins`;
+  }
 
   async function handleStart() {
     setError('');
     setLoading(true);
     try {
-      // For demo: create guest users on-the-fly (no account required)
-      // In production, players would be looked up by account
       if (mode === 'singles') {
         const filledPlayers = players.filter(p => p.name.trim());
         if (filledPlayers.length < 1) throw new Error('Add at least 1 player');
 
-        // Create guest player records and start game
         const playerIds = await Promise.all(
-          filledPlayers.map(p => api.register({ name: p.name.trim(), email: `guest_${Date.now()}_${Math.random()}@guest.local`, password: 'guest' }).then(r => r.user.id).catch(() => null))
+          filledPlayers.map(p =>
+            api.register({ name: p.name.trim(), email: `guest_${Date.now()}_${Math.random()}@guest.local`, password: 'guest' })
+              .then(r => r.user.id).catch(() => null)
+          )
         );
-
         const validIds = playerIds.filter(Boolean);
         if (!validIds.length) throw new Error('Could not create player records');
 
-        const game = await api.createGame({ mode: 'singles', ruleset, players: validIds });
-        navigate(`/game/${game.id}`, { state: { playerNames: filledPlayers.map(p => p.name), playerColors: filledPlayers.map(p => p.color) } });
+        const game = await api.createGame({ mode: 'singles', ruleset, format, legsPerSet, setsPerMatch, players: validIds });
+        navigate(`/game/${game.id}`);
       } else {
         const filledTeams = teams.filter(t => t.name.trim() && t.players.some(p => p.name.trim()));
         if (filledTeams.length < 2) throw new Error('Add at least 2 teams');
 
         const teamData = await Promise.all(filledTeams.map(async t => {
-          const filledPlayers = t.players.filter(p => p.name.trim());
-          if (filledPlayers.length !== 2) throw new Error(`Team "${t.name}" needs exactly 2 players`);
+          const fp = t.players.filter(p => p.name.trim());
+          if (fp.length !== 2) throw new Error(`Team "${t.name}" needs exactly 2 players`);
           const pIds = await Promise.all(
-            filledPlayers.map(p => api.register({ name: p.name.trim(), email: `guest_${Date.now()}_${Math.random()}@guest.local`, password: 'guest' }).then(r => r.user.id))
+            fp.map(p => api.register({ name: p.name.trim(), email: `guest_${Date.now()}_${Math.random()}@guest.local`, password: 'guest' }).then(r => r.user.id))
           );
           return { name: t.name.trim(), players: pIds };
         }));
 
-        const game = await api.createGame({ mode: 'teams', ruleset, teams: teamData });
-        navigate(`/game/${game.id}`, { state: { teamNames: filledTeams.map(t => t.name) } });
+        const game = await api.createGame({ mode: 'teams', ruleset, format, legsPerSet, setsPerMatch, teams: teamData });
+        navigate(`/game/${game.id}`);
       }
     } catch (err) {
       setError(err.message);
@@ -98,6 +143,65 @@ export default function Setup() {
         <p style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '8px' }}>
           {RULESETS.find(r => r.value === ruleset)?.desc}
         </p>
+      </div>
+
+      {/* Match format */}
+      <div style={{ marginBottom: '24px' }}>
+        <p style={{ color: 'var(--muted)', fontSize: '12px', letterSpacing: '0.1em', marginBottom: '10px' }}>MATCH FORMAT</p>
+
+        {/* Presets */}
+        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
+          {PRESETS.map(p => (
+            <button key={p.label} className={`tag ${activePreset === p.label ? 'active' : ''}`} onClick={() => applyPreset(p)}>
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Custom controls — always visible, updates presets */}
+        <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+          {/* Format */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px' }}>Format</p>
+              <p style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                {format === 'best_of' ? 'Win by majority (e.g. Bo3 = need 2)' : 'Win exact count (e.g. First to 3)'}
+              </p>
+            </div>
+            <div style={{ display: 'flex', gap: '6px' }}>
+              <button className={`tag ${format === 'best_of' ? 'active' : ''}`} onClick={() => { setFormat('best_of'); setActivePreset('Custom'); }}>Best of</button>
+              <button className={`tag ${format === 'first_to' ? 'active' : ''}`} onClick={() => { setFormat('first_to'); setActivePreset('Custom'); }}>First to</button>
+            </div>
+          </div>
+
+          {/* Legs per set */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px' }}>Legs per set</p>
+              <p style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                Need {format === 'best_of' ? Math.ceil(legsPerSet / 2) : legsPerSet} to win a set
+              </p>
+            </div>
+            <Stepper value={legsPerSet} onChange={v => { setLegsPerSet(v); setActivePreset('Custom'); }} min={1} max={11} />
+          </div>
+
+          {/* Sets per match */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px' }}>Sets per match</p>
+              <p style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                Need {format === 'best_of' ? Math.ceil(setsPerMatch / 2) : setsPerMatch} to win the match
+              </p>
+            </div>
+            <Stepper value={setsPerMatch} onChange={v => { setSetsPerMatch(v); setActivePreset('Custom'); }} min={1} max={11} />
+          </div>
+
+          {/* Summary */}
+          <div style={{ background: 'var(--bg3)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
+            <p style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 500 }}>📋 {matchSummary()}</p>
+          </div>
+        </div>
       </div>
 
       {/* Players (singles) */}
