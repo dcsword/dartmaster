@@ -116,6 +116,8 @@ input:focus, select:focus { border-color: var(--accent); }
   align-items: center;
   justify-content: center;
 }
+
+.tag{
   display: inline-flex;
   align-items: center;
   padding: 4px 10px;
@@ -127,6 +129,7 @@ input:focus, select:focus { border-color: var(--accent); }
   cursor: pointer;
   transition: all 0.15s;
 }
+
 .tag.active {
   background: var(--accent);
   border-color: var(--accent);
