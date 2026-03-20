@@ -57,6 +57,52 @@ export default function GameDetail() {
         <p>{formatDate(game.started_at)} · {game.mode} · {game.ruleset.replace(/_/g, ' ')}</p>
       </div>
 
+      {/* Legs & sets summary */}
+      {data.legs && data.legs.length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <h2 style={{ fontSize: '24px', color: 'var(--accent)', marginBottom: '12px' }}>LEGS</h2>
+
+          {[...new Set(data.legs.map(l => l.set_number))].map(setNum => (
+            <div key={setNum} style={{ marginBottom: '16px' }}>
+
+              {data.game.sets_per_match > 1 && (
+                <p style={{ color: 'var(--muted)', fontSize: '11px', letterSpacing: '0.1em', marginBottom: '8px' }}>
+                  SET {setNum}
+                </p>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {data.legs
+                  .filter(l => l.set_number === setNum)
+                  .map(leg => (
+                    <div key={leg.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontFamily: 'Bebas Neue', fontSize: '16px', color: 'var(--muted)' }}>
+                          Leg {leg.leg_number}
+                        </span>
+                        {(leg.winner_name || leg.winner_team_name) ? (
+                          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>
+                            🏆 {leg.winner_team_name || leg.winner_name}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '13px', color: 'var(--muted)' }}>In progress</span>
+                        )}
+                      </div>
+                      {leg.finished_at && (
+                        <span style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                          {new Date(leg.finished_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className="round-list"></div>
+
       <div className="round-list">
         {rounds.map(round => {
           const total = turnTotal(round.darts);

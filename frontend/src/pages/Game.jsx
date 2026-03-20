@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../utils/api";
 
+const [legStarterIdx, setLegStarterIdx] = useState(0);
+
 const MULTIPLIERS = [
   { value: 1, label: "Single", short: "S" },
   { value: 2, label: "Double", short: "D" },
@@ -194,6 +196,7 @@ export default function Game() {
           winnerName: player?.name || team?.name,
           updatedGame: updated,
         });
+
         return;
       }
 
@@ -306,13 +309,13 @@ export default function Game() {
                 ? g.players?.map(p => (
                   <div key={p.id} style={{ textAlign: 'center' }}>
                     <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '2px' }}>{p.name}</p>
-                    <p style={{ fontSize: '28px', fontFamily: 'Bebas Neue', color: 'var(--text)' }}>{p.legs_won}</p>
+                    <p style={{ fontSize: '28px', fontFamily: 'Bebas Neue', color: 'var(--text)' }}>{legsWonInSet(p.id, 'singles')}</p>
                   </div>
                 ))
                 : g.teams?.map(t => (
                   <div key={t.id} style={{ textAlign: 'center' }}>
                     <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '2px' }}>{t.name}</p>
-                    <p style={{ fontSize: '28px', fontFamily: 'Bebas Neue', color: 'var(--text)' }}>{t.legs_won}</p>
+                    <p style={{ fontSize: '28px', fontFamily: 'Bebas Neue', color: 'var(--text)' }}>{legsWonInSet(t.id, 'teams')}</p>
                   </div>
                 ))
               }
@@ -322,15 +325,41 @@ export default function Game() {
 
         <button className="btn-primary" style={{ maxWidth: '360px', width: '100%', fontSize: '16px', padding: '16px' }}
           onClick={() => {
-            setLegResult(null);
-            advanceTurn();
+            const totalPlayers = game.mode === 'singles'
+              ? game.players.length
+              : game.teams.length;
+
+            const nextStarter = (legStarterIdx + 1) % totalPlayers;
+            setLegStarterIdx(nextStarter);
+
+            // Set the correct starting player for the new leg
+            if (game.mode === 'singles') {
+              setCurrentPlayerIdx(nextStarter);
+            } else {
+              setCurrentTeamIdx(nextStarter);
+              setCurrentPlayerInTeam(0);
+            }
+
+            setLegResult(null);;
           }}>
           {legResult.setWon ? `Start set ${g.current_set} →` : `Start leg ${g.current_leg} →`}
         </button>
       </div>
     );
   }
+  const currentSetNumber = legResult.updatedGame?.current_set;
 
+  const legsInCurrentSet = legResult.updatedGame?.legs?.filter(
+    l => l.set_number === currentSetNumber && l.finished_at
+  ) || [];
+
+  function legsWonInSet(entityId, mode) {
+    return legsInCurrentSet.filter(l =>
+      mode === 'singles'
+        ? l.winner_id === entityId
+        : l.winner_team_id === entityId
+    ).length;
+  }
   return (
     <div
       style={{
