@@ -170,7 +170,12 @@ export default function Setup() {
               </p>
             </div>
             <div style={{ display: 'flex', gap: '6px' }}>
-              <button className={`tag ${format === 'best_of' ? 'active' : ''}`} onClick={() => { setFormat('best_of'); setActivePreset('Custom'); }}>Best of</button>
+              <button className={`tag ${format === 'best_of' ? 'active' : ''}`} onClick={() => {
+                setFormat('best_of');
+                setActivePreset('Custom');
+                if (legsPerSet % 2 === 0) setLegsPerSet(legsPerSet + 1);
+                if (setsPerMatch % 2 === 0) setSetsPerMatch(setsPerMatch + 1);
+              }}>Best of</button>
               <button className={`tag ${format === 'first_to' ? 'active' : ''}`} onClick={() => { setFormat('first_to'); setActivePreset('Custom'); }}>First to</button>
             </div>
           </div>
@@ -183,7 +188,16 @@ export default function Setup() {
                 Need {format === 'best_of' ? Math.ceil(legsPerSet / 2) : legsPerSet} to win a set
               </p>
             </div>
-            <Stepper value={legsPerSet} onChange={v => { setLegsPerSet(v); setActivePreset('Custom'); }} min={1} max={11} />
+            <Stepper
+              value={legsPerSet}
+              onChange={v => {
+                const val = format === 'best_of' ? (v % 2 === 0 ? v + 1 : v) : v;
+                setLegsPerSet(val);
+                setActivePreset('Custom');
+              }}
+              min={1}
+              max={11}
+            />
           </div>
 
           {/* Sets per match */}
@@ -194,7 +208,16 @@ export default function Setup() {
                 Need {format === 'best_of' ? Math.ceil(setsPerMatch / 2) : setsPerMatch} to win the match
               </p>
             </div>
-            <Stepper value={setsPerMatch} onChange={v => { setSetsPerMatch(v); setActivePreset('Custom'); }} min={1} max={11} />
+            <Stepper
+              value={setsPerMatch}
+              onChange={v => {
+                const val = format === 'best_of' ? (v % 2 === 0 ? v + 1 : v) : v;
+                setSetsPerMatch(val);
+                setActivePreset('Custom');
+              }}
+              min={1}
+              max={11}
+            />
           </div>
 
           {/* Summary */}
