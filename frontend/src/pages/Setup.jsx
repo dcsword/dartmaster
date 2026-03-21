@@ -191,8 +191,15 @@ export default function Setup() {
             <Stepper
               value={legsPerSet}
               onChange={v => {
-                const val = format === 'best_of' ? (v % 2 === 0 ? v + 1 : v) : v;
-                setLegsPerSet(val);
+                if (format === 'best_of') {
+                  const goingUp = v > legsPerSet;
+                  let val = v;
+                  if (val % 2 === 0) val = goingUp ? val + 1 : val - 1;
+                  if (val < 1) val = 1;
+                  setLegsPerSet(val);
+                } else {
+                  setLegsPerSet(v);
+                }
                 setActivePreset('Custom');
               }}
               min={1}
@@ -211,8 +218,15 @@ export default function Setup() {
             <Stepper
               value={setsPerMatch}
               onChange={v => {
-                const val = format === 'best_of' ? (v % 2 === 0 ? v + 1 : v) : v;
-                setSetsPerMatch(val);
+                if (format === 'best_of') {
+                  const goingUp = v > setsPerMatch;
+                  let val = v;
+                  if (val % 2 === 0) val = goingUp ? val + 1 : val - 1;
+                  if (val < 1) val = 1;
+                  setSetsPerMatch(val);
+                } else {
+                  setSetsPerMatch(v);
+                }
                 setActivePreset('Custom');
               }}
               min={1}
