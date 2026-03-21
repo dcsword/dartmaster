@@ -1,15 +1,29 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 export default function History() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.getHistory(30).then(g => { setGames(g); setLoading(false); }).catch(() => setLoading(false));
-  }, []);
+    // Collect all user IDs to filter by:
+    // 1. Logged-in user
+    // 2. Any guest IDs stored on this device
+    const ids = [];
+    if (user?.id) ids.push(user.id);
+    try {
+      const guestIds = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
+      ids.push(...guestIds);
+    } catch {}
+
+    api.getHistory(30, ids)
+      .then(g => { setGames(g); setLoading(false); })
+      .catch(() => setLoading(false));
+  }, [user]);
 
   function formatDate(dt) {
     if (!dt) return '';
@@ -28,7 +42,10 @@ export default function History() {
         ← Back
       </button>
 
-      <h1 style={{ fontSize: '42px', color: 'var(--accent)', marginBottom: '24px' }}>HISTORY</h1>
+      <h1 style={{ fontSize: '42px', color: 'var(--accent)', marginBottom: '8px' }}>HISTORY</h1>
+      <p style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '24px' }}>
+        {user ? `Showing games for ${user.name}` : 'Showing games played on this device'}
+      </p>
 
       {loading && <p style={{ color: 'var(--muted)' }}>Loading...</p>}
       {!loading && games.length === 0 && (

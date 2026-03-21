@@ -34,7 +34,11 @@ export const api = {
   createGame: (body) => request('POST', '/games', body),
   getGame: (id) => request('GET', `/games/${id}`),
   submitTurn: (gameId, body) => request('POST', `/games/${gameId}/turn`, body),
-  getHistory: (limit = 20) => request('GET', `/games?limit=${limit}`),
+  getHistory: (limit = 20, userIds = []) => {
+    const params = new URLSearchParams({ limit });
+    if (userIds.length > 0) params.set('userIds', userIds.join(','));
+    return request('GET', `/games?${params.toString()}`);
+  },
   getCheckout: (gameId, score, ruleset) =>
     request('GET', `/games/${gameId}/checkout?score=${score}&ruleset=${ruleset}`),
   getGameDetail: (id) => request('GET', `/games/${id}/detail`),

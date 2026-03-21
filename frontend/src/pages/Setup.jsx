@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -29,38 +29,15 @@ function Stepper({ value, onChange, min = 1, max = 20 }) {
   );
 }
 
+// Simple player row — no search, just name input + drag handle
 function PlayerRow({ player, index, total, onUpdate, onRemove, onDragStart, onDragOver, onDrop, isDragging }) {
-  const [searchResults, setSearchResults] = useState([]);
-  const searchTimer = useRef(null);
-
-  function handleNameChange(val) {
-    onUpdate({ ...player, name: val, userId: player.isOwner ? player.userId : null });
-    if (player.isOwner) return;
-    clearTimeout(searchTimer.current);
-    if (val.trim().length >= 2) {
-      searchTimer.current = setTimeout(async () => {
-        try {
-          const results = await api.searchPlayers(val.trim());
-          setSearchResults(results);
-        } catch {}
-      }, 300);
-    } else {
-      setSearchResults([]);
-    }
-  }
-
-  function selectResult(r) {
-    onUpdate({ ...player, name: r.name, userId: r.id, color: r.avatar_color || player.color });
-    setSearchResults([]);
-  }
-
   return (
     <div
       draggable
       onDragStart={() => onDragStart(index)}
       onDragOver={e => { e.preventDefault(); onDragOver(index); }}
       onDrop={() => onDrop(index)}
-      style={{ display: 'flex', gap: '10px', alignItems: 'center', opacity: isDragging ? 0.4 : 1, transition: 'opacity 0.15s', position: 'relative' }}
+      style={{ display: 'flex', gap: '10px', alignItems: 'center', opacity: isDragging ? 0.4 : 1, transition: 'opacity 0.15s' }}
     >
       <div style={{ cursor: 'grab', color: 'var(--muted)', fontSize: '16px', flexShrink: 0, userSelect: 'none' }}>⠿</div>
       <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: player.color, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, color: '#fff' }}>
@@ -71,38 +48,14 @@ function PlayerRow({ player, index, total, onUpdate, onRemove, onDragStart, onDr
           placeholder={player.isOwner ? 'You' : `Player ${index + 1}`}
           value={player.name}
           readOnly={player.isOwner}
-          onChange={e => handleNameChange(e.target.value)}
+          onChange={e => onUpdate({ ...player, name: e.target.value })}
           style={{ width: '100%', background: player.isOwner ? 'var(--surface)' : undefined }}
         />
-        {!player.isOwner && searchResults.length > 0 && (
-          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginTop: '4px', overflow: 'hidden' }}>
-            {searchResults.slice(0, 5).map(r => (
-              <div key={r.id} onClick={() => selectResult(r)}
-                style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border)', fontSize: '14px', color: 'var(--text)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-              >
-                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: r.avatar_color || COLORS[0], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-                  {r.name[0].toUpperCase()}
-                </div>
-                <span>{r.name}</span>
-                <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--muted)' }}>registered</span>
-              </div>
-            ))}
-            <div onClick={() => { onUpdate({ ...player, userId: null }); setSearchResults([]); }}
-              style={{ padding: '10px 14px', cursor: 'pointer', fontSize: '13px', color: 'var(--muted)' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            >
-              + Add "{player.name}" as guest
-            </div>
-          </div>
+        {player.isOwner && (
+          <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: 'var(--accent)', fontWeight: 600 }}>you</div>
         )}
         {player.userId && !player.isOwner && (
           <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: 'var(--green)', fontWeight: 600 }}>✓ registered</div>
-        )}
-        {player.isOwner && (
-          <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: 'var(--accent)', fontWeight: 600 }}>you</div>
         )}
       </div>
       {!player.isOwner && total > 1
@@ -113,32 +66,19 @@ function PlayerRow({ player, index, total, onUpdate, onRemove, onDragStart, onDr
   );
 }
 
-// Room panel — shows code, QR, and live member list
-function RoomPanel({ room, onClose, onSelectMembers, players, setPlayers }) {
+function RoomPanel({ room, onClose, players, setPlayers }) {
   const [liveRoom, setLiveRoom] = useState(room);
   const [qrUrl, setQrUrl] = useState('');
   const pollRef = useRef(null);
+  const [timeLeft, setTimeLeft] = useState('');
 
   const joinUrl = `${window.location.origin}/join/${room.code}`;
 
-  useEffect(() => {
-    // Generate QR using free API — no library needed
+  useState(() => {
     setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joinUrl)}&bgcolor=14141c&color=f0ede8&margin=10`);
-
-    // Poll for new members every 3 seconds
     pollRef.current = setInterval(async () => {
-      try {
-        const updated = await api.getRoom(room.code);
-        setLiveRoom(updated);
-      } catch {}
+      try { const updated = await api.getRoom(room.code); setLiveRoom(updated); } catch {}
     }, 3000);
-
-    return () => clearInterval(pollRef.current);
-  }, []);
-
-  // Countdown timer
-  const [timeLeft, setTimeLeft] = useState('');
-  useEffect(() => {
     const tick = () => {
       const diff = new Date(room.expires_at) - new Date();
       if (diff <= 0) { setTimeLeft('Expired'); return; }
@@ -148,13 +88,11 @@ function RoomPanel({ room, onClose, onSelectMembers, players, setPlayers }) {
     };
     tick();
     const t = setInterval(tick, 1000);
-    return () => clearInterval(t);
+    return () => { clearInterval(pollRef.current); clearInterval(t); };
   }, []);
 
-  function addMemberToPlayers(member) {
-    // Don't add if already in players list
+  function addMember(member) {
     if (players.some(p => p.userId === member.id)) return;
-    // Find first empty slot
     const emptyIdx = players.findIndex(p => !p.name.trim() && !p.isOwner);
     if (emptyIdx >= 0) {
       setPlayers(prev => prev.map((p, i) => i === emptyIdx
@@ -165,8 +103,6 @@ function RoomPanel({ room, onClose, onSelectMembers, players, setPlayers }) {
       setPlayers(prev => [...prev, { name: member.name, userId: member.id, color: member.avatar_color || COLORS[prev.length % COLORS.length], isOwner: false }]);
     }
   }
-
-  const guests = liveRoom.members.filter(m => m.id !== room.host_id);
 
   return (
     <div className="card" style={{ padding: '20px', marginBottom: '24px', border: '1px solid var(--accent)' }}>
@@ -180,20 +116,16 @@ function RoomPanel({ room, onClose, onSelectMembers, players, setPlayers }) {
           <p style={{ color: timeLeft === 'Expired' ? 'var(--danger)' : 'var(--text)', fontSize: '18px', fontWeight: 600, fontFamily: 'Bebas Neue' }}>{timeLeft}</p>
         </div>
       </div>
-
-      {/* QR Code */}
       {qrUrl && (
         <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-          <img src={qrUrl} alt="Room QR code" style={{ width: '160px', height: '160px', borderRadius: 'var(--radius-sm)' }} />
+          <img src={qrUrl} alt="Room QR" style={{ width: '160px', height: '160px', borderRadius: 'var(--radius-sm)' }} />
           <p style={{ color: 'var(--muted)', fontSize: '11px', marginTop: '8px' }}>Friends scan this or type the code above</p>
         </div>
       )}
-
-      {/* Live member list */}
       <div style={{ marginBottom: '16px' }}>
         <p style={{ color: 'var(--muted)', fontSize: '11px', letterSpacing: '0.1em', marginBottom: '10px' }}>
           IN ROOM ({liveRoom.members.length})
-          {liveRoom.members.length === 1 && <span style={{ color: 'var(--muted)', fontSize: '11px', marginLeft: '8px' }}>· waiting for friends...</span>}
+          {liveRoom.members.length === 1 && <span style={{ marginLeft: '8px' }}>· waiting for friends...</span>}
         </p>
         {liveRoom.members.map(m => {
           const alreadyAdded = players.some(p => p.userId === m.id);
@@ -205,16 +137,14 @@ function RoomPanel({ room, onClose, onSelectMembers, players, setPlayers }) {
               </div>
               <span style={{ fontSize: '14px', color: 'var(--text)', flex: 1 }}>{m.name}</span>
               {isHost && <span style={{ fontSize: '11px', color: 'var(--accent)' }}>host</span>}
-              {!isHost && (
-                alreadyAdded
-                  ? <span style={{ fontSize: '11px', color: 'var(--green)' }}>✓ added</span>
-                  : <button onClick={() => addMemberToPlayers(m)} style={{ fontSize: '12px', color: 'var(--accent)', background: 'none', border: '1px solid var(--accent)', borderRadius: '99px', padding: '3px 10px', cursor: 'pointer' }}>+ Add</button>
+              {!isHost && (alreadyAdded
+                ? <span style={{ fontSize: '11px', color: 'var(--green)' }}>✓ added</span>
+                : <button onClick={() => addMember(m)} style={{ fontSize: '12px', color: 'var(--accent)', background: 'none', border: '1px solid var(--accent)', borderRadius: '99px', padding: '3px 10px', cursor: 'pointer' }}>+ Add</button>
               )}
             </div>
           );
         })}
       </div>
-
       <button className="btn-ghost" onClick={onClose} style={{ fontSize: '13px' }}>Close room</button>
     </div>
   );
@@ -237,7 +167,6 @@ export default function Setup() {
     { name: user?.name || '', color: COLORS[0], userId: user?.id || null, isOwner: !!user },
     { name: '', color: COLORS[1], userId: null, isOwner: false },
   ]);
-
   const [teams, setTeams] = useState([
     { name: 'Team 1', players: [{ name: user?.name || '', color: COLORS[0], userId: user?.id || null }, { name: '', color: COLORS[1], userId: null }] },
     { name: 'Team 2', players: [{ name: '', color: COLORS[2], userId: null }, { name: '', color: COLORS[3], userId: null }] },
@@ -245,63 +174,69 @@ export default function Setup() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-
   const dragIndex = useRef(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
 
-  function handleDragStart(index) { dragIndex.current = index; }
-  function handleDragOver(index) { setDragOverIndex(index); }
-  function handleDrop(dropIndex) {
-    if (dragIndex.current === null || dragIndex.current === dropIndex) { dragIndex.current = null; setDragOverIndex(null); return; }
+  function handleDragStart(i) { dragIndex.current = i; }
+  function handleDragOver(i) { setDragOverIndex(i); }
+  function handleDrop(dropIdx) {
+    if (dragIndex.current === null || dragIndex.current === dropIdx) { dragIndex.current = null; setDragOverIndex(null); return; }
     setPlayers(prev => {
-      const updated = [...prev];
-      const [moved] = updated.splice(dragIndex.current, 1);
-      updated.splice(dropIndex, 0, moved);
-      return updated;
+      const a = [...prev];
+      const [moved] = a.splice(dragIndex.current, 1);
+      a.splice(dropIdx, 0, moved);
+      return a;
     });
     dragIndex.current = null; setDragOverIndex(null);
   }
 
-  function applyPreset(preset) {
-    setActivePreset(preset.label);
-    if (preset.format) setFormat(preset.format);
-    if (preset.legs) setLegsPerSet(preset.legs);
-    if (preset.sets) setSetsPerMatch(preset.sets);
+  function applyPreset(p) {
+    setActivePreset(p.label);
+    if (p.format) setFormat(p.format);
+    if (p.legs) setLegsPerSet(p.legs);
+    if (p.sets) setSetsPerMatch(p.sets);
   }
 
   function matchSummary() {
-    const legsNeeded = format === 'best_of' ? Math.ceil(legsPerSet / 2) : legsPerSet;
-    const setsNeeded = format === 'best_of' ? Math.ceil(setsPerMatch / 2) : setsPerMatch;
-    const formatLabel = format === 'best_of' ? 'Best of' : 'First to';
-    if (setsPerMatch === 1) return `${formatLabel} ${legsPerSet} leg${legsPerSet > 1 ? 's' : ''} — first to ${legsNeeded} wins`;
-    return `${formatLabel} ${setsPerMatch} sets · ${formatLabel} ${legsPerSet} legs per set — first to ${setsNeeded} sets wins`;
+    const ln = format === 'best_of' ? Math.ceil(legsPerSet / 2) : legsPerSet;
+    const sn = format === 'best_of' ? Math.ceil(setsPerMatch / 2) : setsPerMatch;
+    const fl = format === 'best_of' ? 'Best of' : 'First to';
+    if (setsPerMatch === 1) return `${fl} ${legsPerSet} leg${legsPerSet > 1 ? 's' : ''} — first to ${ln} wins`;
+    return `${fl} ${setsPerMatch} sets · ${fl} ${legsPerSet} legs per set — first to ${sn} sets wins`;
   }
 
   async function handleCreateRoom() {
     if (!user) { setError('You must be signed in to create a room'); return; }
     setRoomLoading(true);
-    try {
-      const r = await api.createRoom();
-      setRoom(r);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setRoomLoading(false);
-    }
+    try { const r = await api.createRoom(); setRoom(r); }
+    catch (err) { setError(err.message); }
+    finally { setRoomLoading(false); }
   }
 
   async function handleCloseRoom() {
-    if (room) {
-      try { await api.closeRoom(room.code); } catch {}
-      setRoom(null);
-    }
+    if (room) { try { await api.closeRoom(room.code); } catch {} setRoom(null); }
   }
 
   async function resolvePlayerId(p) {
     if (p.userId) return p.userId;
     try {
-      const r = await api.register({ name: p.name.trim(), email: `guest_${Date.now()}_${Math.random()}@guest.local`, password: 'guest' });
-      return r.user.id;
+      const r = await api.register({
+        name: p.name.trim(),
+        email: `guest_${Date.now()}_${Math.random()}@guest.local`,
+        password: 'guest',
+      });
+      const guestId = r.user.id;
+      // Store guest ID in localStorage so they can see their history later
+      const stored = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
+      if (!stored.includes(guestId)) {
+        stored.push(guestId);
+        localStorage.setItem('dm_guest_ids', JSON.stringify(stored));
+      }
+      // Also store name→id mapping so returning guests are recognised
+      const nameMap = JSON.parse(localStorage.getItem('dm_guest_map') || '{}');
+      nameMap[p.name.trim().toLowerCase()] = guestId;
+      localStorage.setItem('dm_guest_map', JSON.stringify(nameMap));
+      return guestId;
     } catch { return null; }
   }
 
@@ -309,18 +244,18 @@ export default function Setup() {
     setError(''); setLoading(true);
     try {
       if (mode === 'singles') {
-        const filledPlayers = players.filter(p => p.name.trim());
-        if (filledPlayers.length < 1) throw new Error('Add at least 1 player');
-        const playerIds = await Promise.all(filledPlayers.map(resolvePlayerId));
-        const validIds = playerIds.filter(Boolean);
-        if (!validIds.length) throw new Error('Could not create player records');
+        const fp = players.filter(p => p.name.trim());
+        if (fp.length < 1) throw new Error('Add at least 1 player');
+        const ids = await Promise.all(fp.map(resolvePlayerId));
+        const valid = ids.filter(Boolean);
+        if (!valid.length) throw new Error('Could not create player records');
         if (room) { try { await api.closeRoom(room.code); } catch {} }
-        const game = await api.createGame({ mode: 'singles', ruleset, format, legsPerSet, setsPerMatch, players: validIds });
+        const game = await api.createGame({ mode: 'singles', ruleset, format, legsPerSet, setsPerMatch, players: valid });
         navigate(`/game/${game.id}`);
       } else {
-        const filledTeams = teams.filter(t => t.name.trim() && t.players.some(p => p.name.trim()));
-        if (filledTeams.length < 2) throw new Error('Add at least 2 teams');
-        const teamData = await Promise.all(filledTeams.map(async t => {
+        const ft = teams.filter(t => t.name.trim() && t.players.some(p => p.name.trim()));
+        if (ft.length < 2) throw new Error('Add at least 2 teams');
+        const teamData = await Promise.all(ft.map(async t => {
           const fp = t.players.filter(p => p.name.trim());
           if (fp.length !== 2) throw new Error(`Team "${t.name}" needs exactly 2 players`);
           const pIds = await Promise.all(fp.map(resolvePlayerId));
@@ -330,17 +265,13 @@ export default function Setup() {
         const game = await api.createGame({ mode: 'teams', ruleset, format, legsPerSet, setsPerMatch, teams: teamData });
         navigate(`/game/${game.id}`);
       }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
   }
 
   return (
     <div style={{ maxWidth: '480px', margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={() => navigate('/')} style={{ background: 'none', color: 'var(--muted)', fontSize: '13px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '6px' }}>← Back</button>
-
       <h1 style={{ fontSize: '42px', color: 'var(--accent)', marginBottom: '24px' }}>NEW GAME</h1>
 
       {/* Mode */}
@@ -359,9 +290,7 @@ export default function Setup() {
       <div style={{ marginBottom: '24px' }}>
         <p style={{ color: 'var(--muted)', fontSize: '12px', letterSpacing: '0.1em', marginBottom: '10px' }}>FINISH RULE</p>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {RULESETS.map(r => (
-            <button key={r.value} className={`tag ${ruleset === r.value ? 'active' : ''}`} onClick={() => setRuleset(r.value)}>{r.label}</button>
-          ))}
+          {RULESETS.map(r => <button key={r.value} className={`tag ${ruleset === r.value ? 'active' : ''}`} onClick={() => setRuleset(r.value)}>{r.label}</button>)}
         </div>
         <p style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '8px' }}>{RULESETS.find(r => r.value === ruleset)?.desc}</p>
       </div>
@@ -370,9 +299,7 @@ export default function Setup() {
       <div style={{ marginBottom: '24px' }}>
         <p style={{ color: 'var(--muted)', fontSize: '12px', letterSpacing: '0.1em', marginBottom: '10px' }}>MATCH FORMAT</p>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
-          {PRESETS.map(p => (
-            <button key={p.label} className={`tag ${activePreset === p.label ? 'active' : ''}`} onClick={() => applyPreset(p)}>{p.label}</button>
-          ))}
+          {PRESETS.map(p => <button key={p.label} className={`tag ${activePreset === p.label ? 'active' : ''}`} onClick={() => applyPreset(p)}>{p.label}</button>)}
         </div>
         <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -413,7 +340,7 @@ export default function Setup() {
         </div>
       </div>
 
-      {/* Players (singles) */}
+      {/* Players */}
       {mode === 'singles' && (
         <div style={{ marginBottom: '24px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -425,29 +352,13 @@ export default function Setup() {
             )}
           </div>
           <p style={{ color: 'var(--muted)', fontSize: '11px', marginBottom: '12px' }}>⠿ Drag to reorder · Player 1 throws first</p>
-
-          {/* Room panel */}
-          {room && (
-            <RoomPanel
-              room={room}
-              onClose={handleCloseRoom}
-              players={players}
-              setPlayers={setPlayers}
-            />
-          )}
-
+          {room && <RoomPanel room={room} onClose={handleCloseRoom} players={players} setPlayers={setPlayers} />}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {players.map((p, i) => (
-              <PlayerRow
-                key={i}
-                player={p}
-                index={i}
-                total={players.length}
+              <PlayerRow key={i} player={p} index={i} total={players.length}
                 onUpdate={updated => setPlayers(prev => prev.map((pl, idx) => idx === i ? updated : pl))}
                 onRemove={() => setPlayers(prev => prev.filter((_, idx) => idx !== i))}
-                onDragStart={handleDragStart}
-                onDragOver={handleDragOver}
-                onDrop={handleDrop}
+                onDragStart={handleDragStart} onDragOver={handleDragOver} onDrop={handleDrop}
                 isDragging={dragOverIndex === i && dragIndex.current !== null && dragIndex.current !== i}
               />
             ))}
@@ -469,9 +380,7 @@ export default function Setup() {
               <div key={ti} className="card" style={{ padding: '16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
                   <input placeholder={`Team ${ti + 1} name`} value={t.name} onChange={e => setTeams(prev => prev.map((tm, idx) => idx === ti ? { ...tm, name: e.target.value } : tm))} style={{ fontWeight: 600 }} />
-                  {teams.length > 2 && (
-                    <button onClick={() => setTeams(prev => prev.filter((_, idx) => idx !== ti))} style={{ background: 'none', color: 'var(--danger)', fontSize: '18px', flexShrink: 0 }}>×</button>
-                  )}
+                  {teams.length > 2 && <button onClick={() => setTeams(prev => prev.filter((_, idx) => idx !== ti))} style={{ background: 'none', color: 'var(--danger)', fontSize: '18px', flexShrink: 0 }}>×</button>}
                 </div>
                 {t.players.map((p, pi) => (
                   <input key={pi} placeholder={`Player ${pi + 1}`} value={p.name} style={{ marginBottom: '8px' }}
@@ -490,7 +399,6 @@ export default function Setup() {
       )}
 
       {error && <p style={{ color: 'var(--danger)', marginBottom: '12px', fontSize: '14px' }}>{error}</p>}
-
       <button className="btn-primary" onClick={handleStart} disabled={loading} style={{ fontSize: '18px', padding: '16px', fontFamily: 'Bebas Neue', letterSpacing: '0.05em' }}>
         {loading ? 'STARTING...' : 'START GAME 🎯'}
       </button>

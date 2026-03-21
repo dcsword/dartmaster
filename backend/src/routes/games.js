@@ -236,20 +236,35 @@ router.post('/:id/turn', async (req, res) => {
 router.get('/', async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
   const offset = parseInt(req.query.offset) || 0;
+
+  // Accept comma-separated list of user IDs to filter by (supports guest IDs from localStorage)
+  const userIds = req.query.userIds ? req.query.userIds.split(',').filter(Boolean) : [];
+
   try {
-    const result = await query(
-      `SELECT g.id, g.mode, g.ruleset, g.format, g.legs_per_set, g.sets_per_match,
-              g.status, g.started_at, g.finished_at,
-              u.name as winner_name, t.name as winner_team_name
-       FROM games g
-       LEFT JOIN users u ON u.id = g.winner_id
-       LEFT JOIN teams t ON t.id = g.winner_team_id
-       WHERE g.status = 'finished'
-       ORDER BY g.finished_at DESC LIMIT $1 OFFSET $2`,
-      [limit, offset]
-    );
+    let result;
+    if (userIds.length > 0) {
+      // Return only games where at least one of the given user IDs participated
+      result = await query(
+        `SELECT DISTINCT g.id, g.mode, g.ruleset, g.format, g.legs_per_set, g.sets_per_match,
+                g.status, g.started_at, g.finished_at,
+                u.name as winner_name, t.name as winner_team_name
+         FROM games g
+         LEFT JOIN users u ON u.id = g.winner_id
+         LEFT JOIN teams t ON t.id = g.winner_team_id
+         LEFT JOIN game_players gp ON gp.game_id = g.id
+         LEFT JOIN team_players tp ON tp.team_id IN (SELECT id FROM teams WHERE game_id = g.id)
+         WHERE g.status = 'finished'
+           AND (gp.user_id = ANY($3) OR tp.user_id = ANY($3))
+         ORDER BY g.finished_at DESC LIMIT $1 OFFSET $2`,
+        [limit, offset, userIds]
+      );
+    } else {
+      // No IDs provided — return empty, never expose all games
+      return res.json([]);
+    }
     res.json(result.rows);
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
