@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
+import { useAuth } from '../context/AuthContext';
 
 const RULESETS = [
   { value: 'double_out', label: 'Double Out', desc: 'Must finish on a double' },
@@ -11,11 +12,11 @@ const RULESETS = [
 const COLORS = ['#e8593c', '#2dcb75', '#4a9eff', '#f0a050', '#b060e0', '#40c0b0'];
 
 const PRESETS = [
-  { label: 'Casual', desc: '1 leg', format: 'best_of', legs: 1, sets: 1 },
-  { label: 'Bo3 legs', desc: 'Best of 3', format: 'best_of', legs: 3, sets: 1 },
-  { label: 'Bo5 legs', desc: 'Best of 5', format: 'best_of', legs: 5, sets: 1 },
-  { label: '3 sets', desc: 'First to 3 sets · 3 legs each', format: 'first_to', legs: 3, sets: 3 },
-  { label: 'Custom', desc: 'Set your own format', format: null, legs: null, sets: null },
+  { label: 'Casual',   format: 'best_of',  legs: 1, sets: 1 },
+  { label: 'Bo3 legs', format: 'best_of',  legs: 3, sets: 1 },
+  { label: 'Bo5 legs', format: 'best_of',  legs: 5, sets: 1 },
+  { label: '3 sets',   format: 'first_to', legs: 3, sets: 3 },
+  { label: 'Custom',   format: null, legs: null, sets: null },
 ];
 
 function Stepper({ value, onChange, min = 1, max = 20 }) {
@@ -28,8 +29,130 @@ function Stepper({ value, onChange, min = 1, max = 20 }) {
   );
 }
 
+// Player row with drag handle, search, and remove
+function PlayerRow({ player, index, total, onUpdate, onRemove, onDragStart, onDragOver, onDrop, isDragging }) {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const searchTimer = useRef(null);
+
+  function handleNameChange(val) {
+    onUpdate({ ...player, name: val, userId: player.isOwner ? player.userId : null });
+    setSearchQuery(val);
+
+    if (player.isOwner) return; // don't search for logged-in user slot
+
+    clearTimeout(searchTimer.current);
+    if (val.trim().length >= 2) {
+      setSearching(true);
+      searchTimer.current = setTimeout(async () => {
+        try {
+          const results = await api.searchPlayers(val.trim());
+          setSearchResults(results.filter(r => r.name.toLowerCase() !== val.toLowerCase() || true));
+        } catch {}
+        setSearching(false);
+      }, 300);
+    } else {
+      setSearchResults([]);
+      setSearching(false);
+    }
+  }
+
+  function selectSearchResult(result) {
+    onUpdate({ ...player, name: result.name, userId: result.id, color: result.avatar_color || player.color });
+    setSearchResults([]);
+    setSearchQuery('');
+  }
+
+  function addAsGuest() {
+    onUpdate({ ...player, userId: null });
+    setSearchResults([]);
+    setSearchQuery('');
+  }
+
+  return (
+    <div
+      draggable
+      onDragStart={() => onDragStart(index)}
+      onDragOver={(e) => { e.preventDefault(); onDragOver(index); }}
+      onDrop={() => onDrop(index)}
+      style={{
+        display: 'flex', gap: '10px', alignItems: 'center',
+        opacity: isDragging ? 0.4 : 1,
+        transition: 'opacity 0.15s',
+        position: 'relative',
+      }}
+    >
+      {/* Drag handle */}
+      <div style={{ cursor: 'grab', color: 'var(--muted)', fontSize: '16px', flexShrink: 0, userSelect: 'none', lineHeight: 1 }}>⠿</div>
+
+      {/* Avatar */}
+      <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: player.color, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, color: '#fff' }}>
+        {player.name ? player.name[0].toUpperCase() : (index + 1)}
+      </div>
+
+      {/* Name input */}
+      <div style={{ flex: 1, position: 'relative' }}>
+        <input
+          placeholder={player.isOwner ? 'You' : `Player ${index + 1}`}
+          value={player.name}
+          readOnly={player.isOwner}
+          onChange={e => handleNameChange(e.target.value)}
+          style={{ width: '100%', background: player.isOwner ? 'var(--surface)' : undefined }}
+        />
+
+        {/* Search results dropdown */}
+        {!player.isOwner && searchResults.length > 0 && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginTop: '4px', overflow: 'hidden' }}>
+            {searchResults.slice(0, 5).map(r => (
+              <div key={r.id} onClick={() => selectSearchResult(r)}
+                style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border)', fontSize: '14px', color: 'var(--text)' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'var(--surface)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: r.avatar_color || COLORS[0], display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                  {r.name[0].toUpperCase()}
+                </div>
+                <span>{r.name}</span>
+                <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--muted)' }}>registered</span>
+              </div>
+            ))}
+            <div onClick={addAsGuest}
+              style={{ padding: '10px 14px', cursor: 'pointer', fontSize: '13px', color: 'var(--muted)' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--surface)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              + Add "{player.name}" as guest
+            </div>
+          </div>
+        )}
+
+        {/* Registered badge */}
+        {player.userId && !player.isOwner && (
+          <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: 'var(--green)', fontWeight: 600, letterSpacing: '0.06em' }}>
+            ✓ registered
+          </div>
+        )}
+        {player.isOwner && (
+          <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.06em' }}>
+            you
+          </div>
+        )}
+      </div>
+
+      {/* Remove button — not for owner */}
+      {!player.isOwner && total > 1 ? (
+        <button onClick={onRemove} style={{ background: 'none', color: 'var(--danger)', fontSize: '18px', flexShrink: 0, width: '32px' }}>×</button>
+      ) : (
+        <div style={{ width: '32px', flexShrink: 0 }} />
+      )}
+    </div>
+  );
+}
+
 export default function Setup() {
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [mode, setMode] = useState('singles');
   const [ruleset, setRuleset] = useState('double_out');
@@ -38,17 +161,39 @@ export default function Setup() {
   const [setsPerMatch, setSetsPerMatch] = useState(1);
   const [activePreset, setActivePreset] = useState('Casual');
 
+  // Auto-populate logged-in user as Player 1
   const [players, setPlayers] = useState([
-    { name: '', color: COLORS[0] },
-    { name: '', color: COLORS[1] },
+    { name: user?.name || '', color: COLORS[0], userId: user?.id || null, isOwner: !!user },
+    { name: '', color: COLORS[1], userId: null, isOwner: false },
   ]);
+
   const [teams, setTeams] = useState([
-    { name: 'Team 1', players: [{ name: '', color: COLORS[0] }, { name: '', color: COLORS[1] }] },
-    { name: 'Team 2', players: [{ name: '', color: COLORS[2] }, { name: '', color: COLORS[3] }] },
+    { name: 'Team 1', players: [{ name: user?.name || '', color: COLORS[0], userId: user?.id || null }, { name: '', color: COLORS[1], userId: null }] },
+    { name: 'Team 2', players: [{ name: '', color: COLORS[2], userId: null }, { name: '', color: COLORS[3], userId: null }] },
   ]);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Drag state
+  const dragIndex = useRef(null);
+  const [dragOverIndex, setDragOverIndex] = useState(null);
+
+  function handleDragStart(index) { dragIndex.current = index; }
+  function handleDragOver(index) { setDragOverIndex(index); }
+  function handleDrop(dropIndex) {
+    if (dragIndex.current === null || dragIndex.current === dropIndex) {
+      dragIndex.current = null; setDragOverIndex(null); return;
+    }
+    setPlayers(prev => {
+      const updated = [...prev];
+      const [moved] = updated.splice(dragIndex.current, 1);
+      updated.splice(dropIndex, 0, moved);
+      return updated;
+    });
+    dragIndex.current = null;
+    setDragOverIndex(null);
+  }
 
   function applyPreset(preset) {
     setActivePreset(preset.label);
@@ -61,11 +206,22 @@ export default function Setup() {
     const legsNeeded = format === 'best_of' ? Math.ceil(legsPerSet / 2) : legsPerSet;
     const setsNeeded = format === 'best_of' ? Math.ceil(setsPerMatch / 2) : setsPerMatch;
     const formatLabel = format === 'best_of' ? 'Best of' : 'First to';
-
-    if (setsPerMatch === 1) {
-      return `${formatLabel} ${legsPerSet} leg${legsPerSet > 1 ? 's' : ''} — first to ${legsNeeded} wins`;
-    }
+    if (setsPerMatch === 1) return `${formatLabel} ${legsPerSet} leg${legsPerSet > 1 ? 's' : ''} — first to ${legsNeeded} wins`;
     return `${formatLabel} ${setsPerMatch} sets · ${formatLabel} ${legsPerSet} legs per set — first to ${setsNeeded} sets wins`;
+  }
+
+  async function resolvePlayerId(p) {
+    // Logged-in user
+    if (p.userId) return p.userId;
+    // Guest — create throwaway account
+    try {
+      const r = await api.register({
+        name: p.name.trim(),
+        email: `guest_${Date.now()}_${Math.random()}@guest.local`,
+        password: 'guest',
+      });
+      return r.user.id;
+    } catch { return null; }
   }
 
   async function handleStart() {
@@ -76,12 +232,7 @@ export default function Setup() {
         const filledPlayers = players.filter(p => p.name.trim());
         if (filledPlayers.length < 1) throw new Error('Add at least 1 player');
 
-        const playerIds = await Promise.all(
-          filledPlayers.map(p =>
-            api.register({ name: p.name.trim(), email: `guest_${Date.now()}_${Math.random()}@guest.local`, password: 'guest' })
-              .then(r => r.user.id).catch(() => null)
-          )
-        );
+        const playerIds = await Promise.all(filledPlayers.map(resolvePlayerId));
         const validIds = playerIds.filter(Boolean);
         if (!validIds.length) throw new Error('Could not create player records');
 
@@ -94,10 +245,8 @@ export default function Setup() {
         const teamData = await Promise.all(filledTeams.map(async t => {
           const fp = t.players.filter(p => p.name.trim());
           if (fp.length !== 2) throw new Error(`Team "${t.name}" needs exactly 2 players`);
-          const pIds = await Promise.all(
-            fp.map(p => api.register({ name: p.name.trim(), email: `guest_${Date.now()}_${Math.random()}@guest.local`, password: 'guest' }).then(r => r.user.id))
-          );
-          return { name: t.name.trim(), players: pIds };
+          const pIds = await Promise.all(fp.map(resolvePlayerId));
+          return { name: t.name.trim(), players: pIds.filter(Boolean) };
         }));
 
         const game = await api.createGame({ mode: 'teams', ruleset, format, legsPerSet, setsPerMatch, teams: teamData });
@@ -135,106 +284,53 @@ export default function Setup() {
         <p style={{ color: 'var(--muted)', fontSize: '12px', letterSpacing: '0.1em', marginBottom: '10px' }}>FINISH RULE</p>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {RULESETS.map(r => (
-            <button key={r.value} className={`tag ${ruleset === r.value ? 'active' : ''}`} onClick={() => setRuleset(r.value)}>
-              {r.label}
-            </button>
+            <button key={r.value} className={`tag ${ruleset === r.value ? 'active' : ''}`} onClick={() => setRuleset(r.value)}>{r.label}</button>
           ))}
         </div>
-        <p style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '8px' }}>
-          {RULESETS.find(r => r.value === ruleset)?.desc}
-        </p>
+        <p style={{ color: 'var(--muted)', fontSize: '12px', marginTop: '8px' }}>{RULESETS.find(r => r.value === ruleset)?.desc}</p>
       </div>
 
       {/* Match format */}
       <div style={{ marginBottom: '24px' }}>
         <p style={{ color: 'var(--muted)', fontSize: '12px', letterSpacing: '0.1em', marginBottom: '10px' }}>MATCH FORMAT</p>
-
-        {/* Presets */}
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' }}>
           {PRESETS.map(p => (
-            <button key={p.label} className={`tag ${activePreset === p.label ? 'active' : ''}`} onClick={() => applyPreset(p)}>
-              {p.label}
-            </button>
+            <button key={p.label} className={`tag ${activePreset === p.label ? 'active' : ''}`} onClick={() => applyPreset(p)}>{p.label}</button>
           ))}
         </div>
-
-        {/* Custom controls — always visible, updates presets */}
         <div className="card" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-
-          {/* Format */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px' }}>Format</p>
-              <p style={{ fontSize: '11px', color: 'var(--muted)' }}>
-                {format === 'best_of' ? 'Win by majority (e.g. Bo3 = need 2)' : 'Win exact count (e.g. First to 3)'}
-              </p>
+              <p style={{ fontSize: '11px', color: 'var(--muted)' }}>{format === 'best_of' ? 'Win by majority (e.g. Bo3 = need 2)' : 'Win exact count (e.g. First to 3)'}</p>
             </div>
             <div style={{ display: 'flex', gap: '6px' }}>
-              <button className={`tag ${format === 'best_of' ? 'active' : ''}`} onClick={() => {
-                setFormat('best_of');
-                setActivePreset('Custom');
-                if (legsPerSet % 2 === 0) setLegsPerSet(legsPerSet + 1);
-                if (setsPerMatch % 2 === 0) setSetsPerMatch(setsPerMatch + 1);
-              }}>Best of</button>
+              <button className={`tag ${format === 'best_of' ? 'active' : ''}`} onClick={() => { setFormat('best_of'); setActivePreset('Custom'); if (legsPerSet % 2 === 0) setLegsPerSet(legsPerSet + 1); if (setsPerMatch % 2 === 0) setSetsPerMatch(setsPerMatch + 1); }}>Best of</button>
               <button className={`tag ${format === 'first_to' ? 'active' : ''}`} onClick={() => { setFormat('first_to'); setActivePreset('Custom'); }}>First to</button>
             </div>
           </div>
-
-          {/* Legs per set */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px' }}>Legs per set</p>
-              <p style={{ fontSize: '11px', color: 'var(--muted)' }}>
-                Need {format === 'best_of' ? Math.ceil(legsPerSet / 2) : legsPerSet} to win a set
-              </p>
+              <p style={{ fontSize: '11px', color: 'var(--muted)' }}>Need {format === 'best_of' ? Math.ceil(legsPerSet / 2) : legsPerSet} to win a set</p>
             </div>
-            <Stepper
-              value={legsPerSet}
-              onChange={v => {
-                if (format === 'best_of') {
-                  const goingUp = v > legsPerSet;
-                  let val = v;
-                  if (val % 2 === 0) val = goingUp ? val + 1 : val - 1;
-                  if (val < 1) val = 1;
-                  setLegsPerSet(val);
-                } else {
-                  setLegsPerSet(v);
-                }
-                setActivePreset('Custom');
-              }}
-              min={1}
-              max={11}
-            />
+            <Stepper value={legsPerSet} min={1} max={11} onChange={v => {
+              if (format === 'best_of') { const goingUp = v > legsPerSet; let val = v; if (val % 2 === 0) val = goingUp ? val + 1 : val - 1; if (val < 1) val = 1; setLegsPerSet(val); }
+              else setLegsPerSet(v);
+              setActivePreset('Custom');
+            }} />
           </div>
-
-          {/* Sets per match */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
               <p style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px' }}>Sets per match</p>
-              <p style={{ fontSize: '11px', color: 'var(--muted)' }}>
-                Need {format === 'best_of' ? Math.ceil(setsPerMatch / 2) : setsPerMatch} to win the match
-              </p>
+              <p style={{ fontSize: '11px', color: 'var(--muted)' }}>Need {format === 'best_of' ? Math.ceil(setsPerMatch / 2) : setsPerMatch} to win the match</p>
             </div>
-            <Stepper
-              value={setsPerMatch}
-              onChange={v => {
-                if (format === 'best_of') {
-                  const goingUp = v > setsPerMatch;
-                  let val = v;
-                  if (val % 2 === 0) val = goingUp ? val + 1 : val - 1;
-                  if (val < 1) val = 1;
-                  setSetsPerMatch(val);
-                } else {
-                  setSetsPerMatch(v);
-                }
-                setActivePreset('Custom');
-              }}
-              min={1}
-              max={11}
-            />
+            <Stepper value={setsPerMatch} min={1} max={11} onChange={v => {
+              if (format === 'best_of') { const goingUp = v > setsPerMatch; let val = v; if (val % 2 === 0) val = goingUp ? val + 1 : val - 1; if (val < 1) val = 1; setSetsPerMatch(val); }
+              else setSetsPerMatch(v);
+              setActivePreset('Custom');
+            }} />
           </div>
-
-          {/* Summary */}
           <div style={{ background: 'var(--bg3)', borderRadius: 'var(--radius-sm)', padding: '10px 12px' }}>
             <p style={{ fontSize: '12px', color: 'var(--accent)', fontWeight: 500 }}>📋 {matchSummary()}</p>
           </div>
@@ -244,22 +340,26 @@ export default function Setup() {
       {/* Players (singles) */}
       {mode === 'singles' && (
         <div style={{ marginBottom: '24px' }}>
-          <p style={{ color: 'var(--muted)', fontSize: '12px', letterSpacing: '0.1em', marginBottom: '10px' }}>PLAYERS (max 4)</p>
+          <p style={{ color: 'var(--muted)', fontSize: '12px', letterSpacing: '0.1em', marginBottom: '6px' }}>PLAYERS (max 4)</p>
+          <p style={{ color: 'var(--muted)', fontSize: '11px', marginBottom: '12px' }}>⠿ Drag to reorder · Player 1 throws first</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {players.map((p, i) => (
-              <div key={i} style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: p.color, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, color: '#fff' }}>
-                  {p.name ? p.name[0].toUpperCase() : (i + 1)}
-                </div>
-                <input placeholder={`Player ${i + 1}`} value={p.name} onChange={e => setPlayers(prev => prev.map((pl, idx) => idx === i ? { ...pl, name: e.target.value } : pl))} />
-                {players.length > 1 && (
-                  <button onClick={() => setPlayers(prev => prev.filter((_, idx) => idx !== i))} style={{ background: 'none', color: 'var(--danger)', fontSize: '18px', flexShrink: 0, width: '32px' }}>×</button>
-                )}
-              </div>
+              <PlayerRow
+                key={i}
+                player={p}
+                index={i}
+                total={players.length}
+                onUpdate={updated => setPlayers(prev => prev.map((pl, idx) => idx === i ? updated : pl))}
+                onRemove={() => setPlayers(prev => prev.filter((_, idx) => idx !== i))}
+                onDragStart={handleDragStart}
+                onDragOver={handleDragOver}
+                onDrop={handleDrop}
+                isDragging={dragOverIndex === i && dragIndex.current !== null && dragIndex.current !== i}
+              />
             ))}
           </div>
           {players.length < 4 && (
-            <button className="btn-ghost" style={{ marginTop: '12px' }} onClick={() => setPlayers(prev => [...prev, { name: '', color: COLORS[prev.length % COLORS.length] }])}>
+            <button className="btn-ghost" style={{ marginTop: '12px' }} onClick={() => setPlayers(prev => [...prev, { name: '', color: COLORS[prev.length % COLORS.length], userId: null, isOwner: false }])}>
               + Add Player
             </button>
           )}
@@ -288,7 +388,7 @@ export default function Setup() {
             ))}
           </div>
           {teams.length < 4 && (
-            <button className="btn-ghost" style={{ marginTop: '12px' }} onClick={() => setTeams(prev => [...prev, { name: `Team ${prev.length + 1}`, players: [{ name: '', color: COLORS[prev.length * 2 % COLORS.length] }, { name: '', color: COLORS[(prev.length * 2 + 1) % COLORS.length] }] }])}>
+            <button className="btn-ghost" style={{ marginTop: '12px' }} onClick={() => setTeams(prev => [...prev, { name: `Team ${prev.length + 1}`, players: [{ name: '', color: COLORS[prev.length * 2 % COLORS.length], userId: null }, { name: '', color: COLORS[(prev.length * 2 + 1) % COLORS.length], userId: null }] }])}>
               + Add Team
             </button>
           )}
