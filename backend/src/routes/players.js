@@ -13,7 +13,9 @@ router.get('/search', async (req, res) => {
   try {
     const result = await query(
       `SELECT id, name, avatar_color FROM users
-       WHERE name ILIKE $1 LIMIT 10`,
+       WHERE name ILIKE $1
+       AND email NOT LIKE '%@guest.local'
+       LIMIT 10`,
       [`%${q}%`]
     );
     res.json(result.rows);
