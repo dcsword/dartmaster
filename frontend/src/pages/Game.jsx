@@ -222,140 +222,140 @@ export default function Game() {
               ))}
             </div>
           </div>
-
-          <button className="btn-primary" style={{ maxWidth: "360px", width: "100%", fontSize: "16px", padding: "16px" }}
-            onClick={() => {
-              const total = game.mode === "singles" ? game.players.length : game.teams.length;
-              const nextStarter = (legStarterIdx + 1) % total;
-              setLegStarterIdx(nextStarter);
-              if (game.mode === "singles") { setCurrentPlayerIdx(nextStarter); }
-              else { setCurrentTeamIdx(nextStarter); setCurrentPlayerInTeam(0); }
-              setLegResult(null);
-            }}>
-            {legResult.setWon ? `Start set ${g.current_set} →` : `Start leg ${g.current_leg} →`}
-          </button>
         </div>
-        );
+        <button className="btn-primary" style={{ maxWidth: "360px", width: "100%", fontSize: "16px", padding: "16px" }}
+          onClick={() => {
+            const total = game.mode === "singles" ? game.players.length : game.teams.length;
+            const nextStarter = (legStarterIdx + 1) % total;
+            setLegStarterIdx(nextStarter);
+            if (game.mode === "singles") { setCurrentPlayerIdx(nextStarter); }
+            else { setCurrentTeamIdx(nextStarter); setCurrentPlayerInTeam(0); }
+            setLegResult(null);
+          }}>
+          {legResult.setWon ? `Start set ${g.current_set} →` : `Start leg ${g.current_leg} →`}
+        </button>
+      </div>
+    );
   }
 
-        // ── Main game screen ──────────────────────────────────────────────────────
+  // ── Main game screen ──────────────────────────────────────────────────────
 
-        return (
-        <div style={{ maxWidth: "480px", margin: "0 auto", padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
+  return (
+    <div style={{ maxWidth: "480px", margin: "0 auto", padding: "16px", display: "flex", flexDirection: "column", gap: "12px" }}>
 
-          {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <h1 style={{ fontSize: "28px", color: "var(--accent)" }}>501</h1>
-            <span style={{ color: "var(--muted)", fontSize: "12px", letterSpacing: "0.08em" }}>{game.ruleset.replace("_", " ").toUpperCase()}</span>
-            <button onClick={() => navigate("/")} style={{ background: "none", color: "var(--muted)", fontSize: "12px" }}>✕ Quit</button>
-          </div>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <h1 style={{ fontSize: "28px", color: "var(--accent)" }}>501</h1>
+        <span style={{ color: "var(--muted)", fontSize: "12px", letterSpacing: "0.08em" }}>{game.ruleset.replace("_", " ").toUpperCase()}</span>
+        <button onClick={() => navigate("/")} style={{ background: "none", color: "var(--muted)", fontSize: "12px" }}>✕ Quit</button>
+      </div>
 
-          {/* Match status bar */}
-          <div style={{ display: "flex", gap: "10px", alignItems: "center", background: "var(--bg2)", borderRadius: "var(--radius-sm)", padding: "8px 12px" }}>
-            {game.sets_per_match > 1 && (<><span style={{ fontSize: "11px", color: "var(--muted)" }}>Set <strong style={{ color: "var(--text)" }}>{game.current_set}</strong>/{game.sets_per_match}</span><span style={{ color: "var(--border)", fontSize: "11px" }}>·</span></>)}
-            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Leg <strong style={{ color: "var(--text)" }}>{game.current_leg}</strong>/{game.legs_per_set}</span>
-            <span style={{ color: "var(--border)", fontSize: "11px" }}>·</span>
-            <span style={{ fontSize: "11px", color: "var(--muted)" }}>{game.format === "best_of" ? "Best of" : "First to"}</span>
-            <span style={{ flex: 1 }} />
-            <span style={{ fontSize: "11px", color: "var(--muted)" }}>Round {(game.recentRounds?.length || 0) + 1}</span>
-          </div>
+      {/* Match status bar */}
+      <div style={{ display: "flex", gap: "10px", alignItems: "center", background: "var(--bg2)", borderRadius: "var(--radius-sm)", padding: "8px 12px" }}>
+        {game.sets_per_match > 1 && (<><span style={{ fontSize: "11px", color: "var(--muted)" }}>Set <strong style={{ color: "var(--text)" }}>{game.current_set}</strong>/{game.sets_per_match}</span><span style={{ color: "var(--border)", fontSize: "11px" }}>·</span></>)}
+        <span style={{ fontSize: "11px", color: "var(--muted)" }}>Leg <strong style={{ color: "var(--text)" }}>{game.current_leg}</strong>/{game.legs_per_set}</span>
+        <span style={{ color: "var(--border)", fontSize: "11px" }}>·</span>
+        <span style={{ fontSize: "11px", color: "var(--muted)" }}>{game.format === "best_of" ? "Best of" : "First to"}</span>
+        <span style={{ flex: 1 }} />
+        <span style={{ fontSize: "11px", color: "var(--muted)" }}>Round {(game.recentRounds?.length || 0) + 1}</span>
+      </div>
 
-          {/* Scoreboard */}
-          <div className="card" style={{ padding: "12px" }}>
-            {game.mode === "singles" ? (
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${game.players.length}, 1fr)`, gap: "8px" }}>
-                {game.players.map((p, i) => {
-                  const active = i === currentPlayerIdx;
-                  return (
-                    <div key={p.id} style={{ textAlign: "center", padding: "10px 6px", borderRadius: "var(--radius-sm)", background: active ? "var(--surface)" : "transparent", border: active ? "1px solid var(--accent)" : "1px solid transparent", transition: "all 0.2s" }}>
-                      <div style={{ fontSize: "11px", color: active ? "var(--accent)" : "var(--muted)", marginBottom: "4px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{active ? "▶ " : ""}{p.name}</div>
-                      <div style={{ fontSize: "32px", fontFamily: "Bebas Neue", color: active ? "var(--text)" : "var(--muted)", lineHeight: 1 }}>{i === currentPlayerIdx ? remaining : p.score}</div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div style={{ display: "grid", gridTemplateColumns: `repeat(${game.teams.length}, 1fr)`, gap: "8px" }}>
-                {game.teams.map((t, ti) => {
-                  const active = ti === currentTeamIdx;
-                  return (
-                    <div key={t.id} style={{ textAlign: "center", padding: "10px 6px", borderRadius: "var(--radius-sm)", background: active ? "var(--surface)" : "transparent", border: active ? "1px solid var(--accent)" : "1px solid transparent" }}>
-                      <div style={{ fontSize: "11px", color: active ? "var(--accent)" : "var(--muted)", marginBottom: "2px", fontWeight: 500 }}>{t.name}</div>
-                      <div style={{ fontSize: "28px", fontFamily: "Bebas Neue", lineHeight: 1, color: active ? "var(--text)" : "var(--muted)" }}>{ti === currentTeamIdx ? remaining : t.score}</div>
-                      {active && <div style={{ fontSize: "10px", color: "var(--muted)", marginTop: "2px" }}>{player?.name}</div>}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Current turn */}
-          <div className="card">
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-              <span style={{ fontSize: "13px", color: "var(--muted)" }}>{team ? `${team.name} · ` : ""}{player?.name} — dart {darts.length + 1} of 3</span>
-              <span style={{ fontFamily: "Bebas Neue", fontSize: "20px", color: remaining <= 170 ? "var(--accent2)" : "var(--text)" }}>{remaining}</span>
-            </div>
-
-            {/* Dart slots */}
-            <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
-              {[0, 1, 2].map((i) => (
-                <div key={i} style={{ flex: 1, padding: "10px 6px", borderRadius: "var(--radius-sm)", background: darts[i] ? "var(--surface)" : "var(--bg3)", border: `1px solid ${darts[i] ? "var(--accent)" : "var(--border)"}`, textAlign: "center", fontSize: "15px", fontWeight: 600, color: darts[i] ? "var(--text)" : "var(--muted)", transition: "all 0.15s" }}>
-                  {darts[i] ? darts[i].display : "—"}
+      {/* Scoreboard */}
+      <div className="card" style={{ padding: "12px" }}>
+        {game.mode === "singles" ? (
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${game.players.length}, 1fr)`, gap: "8px" }}>
+            {game.players.map((p, i) => {
+              const active = i === currentPlayerIdx;
+              return (
+                <div key={p.id} style={{ textAlign: "center", padding: "10px 6px", borderRadius: "var(--radius-sm)", background: active ? "var(--surface)" : "transparent", border: active ? "1px solid var(--accent)" : "1px solid transparent", transition: "all 0.2s" }}>
+                  <div style={{ fontSize: "11px", color: active ? "var(--accent)" : "var(--muted)", marginBottom: "4px", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{active ? "▶ " : ""}{p.name}</div>
+                  <div style={{ fontSize: "32px", fontFamily: "Bebas Neue", color: active ? "var(--text)" : "var(--muted)", lineHeight: 1 }}>{i === currentPlayerIdx ? remaining : p.score}</div>
                 </div>
-              ))}
-            </div>
-
-            {/* Checkout */}
-            {checkout && darts.length === 0 && (
-              <div style={{ background: "rgba(232,89,60,0.1)", border: "1px solid rgba(232,89,60,0.3)", borderRadius: "var(--radius-sm)", padding: "8px 12px", marginBottom: "12px", fontSize: "13px" }}>
-                <span style={{ color: "var(--accent)", fontWeight: 600 }}>🎯 Checkout: </span>
-                <span style={{ color: "var(--text)" }}>{checkout.join(" → ")}</span>
-              </div>
-            )}
-
-            {/* Multiplier */}
-            <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
-              {MULTIPLIERS.map((m) => (
-                <button key={m.value} className={`btn-multiplier ${multiplier === m.value ? "active" : ""}`} onClick={() => setMultiplier(m.value)}>{m.short}</button>
-              ))}
-            </div>
-
-            {/* Number pad */}
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px", marginBottom: "10px" }}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((n) => (
-                <button key={n} className="btn-numpad" onClick={() => addDart(n, multiplier)} disabled={darts.length >= 3 || n * multiplier > remaining}>{n}</button>
-              ))}
-            </div>
-
-            {/* Special buttons */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "6px", marginBottom: "10px" }}>
-              <button className="btn-special" onClick={() => addDart(0, 1)} disabled={darts.length >= 3}>Miss</button>
-              <button className="btn-bull25" onClick={() => addDart(25, 1, true)} disabled={darts.length >= 3 || 25 > remaining}>Bull 25</button>
-              <button className="btn-bull50" onClick={() => addDart(50, 1, true)} disabled={darts.length >= 3 || 50 > remaining}>Bull 50</button>
-              <button className="btn-special" onClick={undoDart} disabled={darts.length === 0}>↩ Undo</button>
-            </div>
-
-            {error && <p style={{ color: "var(--danger)", fontSize: "13px", marginBottom: "8px", textAlign: "center" }}>{error}</p>}
-
-            {/* Submit / Bust */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-              <button className="btn-bust" onClick={handleBust}>BUST</button>
-              <button className={`btn-submit ${darts.length > 0 ? "ready" : "waiting"}`} onClick={() => submitTurn()} disabled={darts.length === 0 || submitting}>
-                {submitting ? "..." : darts.length === 3 ? "NEXT PLAYER →" : `DONE (${darts.length}/3)`}
-              </button>
-            </div>
+              );
+            })}
           </div>
+        ) : (
+          <div style={{ display: "grid", gridTemplateColumns: `repeat(${game.teams.length}, 1fr)`, gap: "8px" }}>
+            {game.teams.map((t, ti) => {
+              const active = ti === currentTeamIdx;
+              return (
+                <div key={t.id} style={{ textAlign: "center", padding: "10px 6px", borderRadius: "var(--radius-sm)", background: active ? "var(--surface)" : "transparent", border: active ? "1px solid var(--accent)" : "1px solid transparent" }}>
+                  <div style={{ fontSize: "11px", color: active ? "var(--accent)" : "var(--muted)", marginBottom: "2px", fontWeight: 500 }}>{t.name}</div>
+                  <div style={{ fontSize: "28px", fontFamily: "Bebas Neue", lineHeight: 1, color: active ? "var(--text)" : "var(--muted)" }}>{ti === currentTeamIdx ? remaining : t.score}</div>
+                  {active && <div style={{ fontSize: "10px", color: "var(--muted)", marginTop: "2px" }}>{player?.name}</div>}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-          {/* Last turn */}
-          {lastTurn && (
-            <div style={{ fontSize: "13px", color: "var(--muted)", textAlign: "center", padding: "8px" }}>
-              {lastTurn.turnResult?.isBust
-                ? <span style={{ color: "var(--danger)" }}>💥 BUST — score reset</span>
-                : <span>Last turn: {lastTurn.turnResult?.parsedDarts?.map((d) => d.score).join(" + ")} = {lastTurn.turnResult?.parsedDarts?.reduce((s, d) => s + d.score, 0)}</span>
-              }
-            </div>
-          )}
+      {/* Current turn */}
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+          <span style={{ fontSize: "13px", color: "var(--muted)" }}>{team ? `${team.name} · ` : ""}{player?.name} — dart {darts.length + 1} of 3</span>
+          <span style={{ fontFamily: "Bebas Neue", fontSize: "20px", color: remaining <= 170 ? "var(--accent2)" : "var(--text)" }}>{remaining}</span>
         </div>
-        );
+
+        {/* Dart slots */}
+        <div style={{ display: "flex", gap: "8px", marginBottom: "12px" }}>
+          {[0, 1, 2].map((i) => (
+            <div key={i} style={{ flex: 1, padding: "10px 6px", borderRadius: "var(--radius-sm)", background: darts[i] ? "var(--surface)" : "var(--bg3)", border: `1px solid ${darts[i] ? "var(--accent)" : "var(--border)"}`, textAlign: "center", fontSize: "15px", fontWeight: 600, color: darts[i] ? "var(--text)" : "var(--muted)", transition: "all 0.15s" }}>
+              {darts[i] ? darts[i].display : "—"}
+            </div>
+          ))}
+        </div>
+
+        {/* Checkout */}
+        {checkout && darts.length === 0 && (
+          <div style={{ background: "rgba(232,89,60,0.1)", border: "1px solid rgba(232,89,60,0.3)", borderRadius: "var(--radius-sm)", padding: "8px 12px", marginBottom: "12px", fontSize: "13px" }}>
+            <span style={{ color: "var(--accent)", fontWeight: 600 }}>🎯 Checkout: </span>
+            <span style={{ color: "var(--text)" }}>{checkout.join(" → ")}</span>
+          </div>
+        )}
+
+        {/* Multiplier */}
+        <div style={{ display: "flex", gap: "6px", marginBottom: "12px" }}>
+          {MULTIPLIERS.map((m) => (
+            <button key={m.value} className={`btn-multiplier ${multiplier === m.value ? "active" : ""}`} onClick={() => setMultiplier(m.value)}>{m.short}</button>
+          ))}
+        </div>
+
+        {/* Number pad */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "6px", marginBottom: "10px" }}>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20].map((n) => (
+            <button key={n} className="btn-numpad" onClick={() => addDart(n, multiplier)} disabled={darts.length >= 3 || n * multiplier > remaining}>{n}</button>
+          ))}
+        </div>
+
+        {/* Special buttons */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: "6px", marginBottom: "10px" }}>
+          <button className="btn-special" onClick={() => addDart(0, 1)} disabled={darts.length >= 3}>Miss</button>
+          <button className="btn-bull25" onClick={() => addDart(25, 1, true)} disabled={darts.length >= 3 || 25 > remaining}>Bull 25</button>
+          <button className="btn-bull50" onClick={() => addDart(50, 1, true)} disabled={darts.length >= 3 || 50 > remaining}>Bull 50</button>
+          <button className="btn-special" onClick={undoDart} disabled={darts.length === 0}>↩ Undo</button>
+        </div>
+
+        {error && <p style={{ color: "var(--danger)", fontSize: "13px", marginBottom: "8px", textAlign: "center" }}>{error}</p>}
+
+        {/* Submit / Bust */}
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+          <button className="btn-bust" onClick={handleBust}>BUST</button>
+          <button className={`btn-submit ${darts.length > 0 ? "ready" : "waiting"}`} onClick={() => submitTurn()} disabled={darts.length === 0 || submitting}>
+            {submitting ? "..." : darts.length === 3 ? "NEXT PLAYER →" : `DONE (${darts.length}/3)`}
+          </button>
+        </div>
+      </div>
+
+      {/* Last turn */}
+      {lastTurn && (
+        <div style={{ fontSize: "13px", color: "var(--muted)", textAlign: "center", padding: "8px" }}>
+          {lastTurn.turnResult?.isBust
+            ? <span style={{ color: "var(--danger)" }}>💥 BUST — score reset</span>
+            : <span>Last turn: {lastTurn.turnResult?.parsedDarts?.map((d) => d.score).join(" + ")} = {lastTurn.turnResult?.parsedDarts?.reduce((s, d) => s + d.score, 0)}</span>
+          }
+        </div>
+      )}
+    </div>
+  );
 }
