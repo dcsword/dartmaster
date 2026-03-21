@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -29,69 +29,43 @@ function Stepper({ value, onChange, min = 1, max = 20 }) {
   );
 }
 
-// Player row with drag handle, search, and remove
 function PlayerRow({ player, index, total, onUpdate, onRemove, onDragStart, onDragOver, onDrop, isDragging }) {
-  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [searching, setSearching] = useState(false);
   const searchTimer = useRef(null);
 
   function handleNameChange(val) {
     onUpdate({ ...player, name: val, userId: player.isOwner ? player.userId : null });
-    setSearchQuery(val);
-
-    if (player.isOwner) return; // don't search for logged-in user slot
-
+    if (player.isOwner) return;
     clearTimeout(searchTimer.current);
     if (val.trim().length >= 2) {
-      setSearching(true);
       searchTimer.current = setTimeout(async () => {
         try {
           const results = await api.searchPlayers(val.trim());
-          setSearchResults(results.filter(r => r.name.toLowerCase() !== val.toLowerCase() || true));
+          setSearchResults(results);
         } catch {}
-        setSearching(false);
       }, 300);
     } else {
       setSearchResults([]);
-      setSearching(false);
     }
   }
 
-  function selectSearchResult(result) {
-    onUpdate({ ...player, name: result.name, userId: result.id, color: result.avatar_color || player.color });
+  function selectResult(r) {
+    onUpdate({ ...player, name: r.name, userId: r.id, color: r.avatar_color || player.color });
     setSearchResults([]);
-    setSearchQuery('');
-  }
-
-  function addAsGuest() {
-    onUpdate({ ...player, userId: null });
-    setSearchResults([]);
-    setSearchQuery('');
   }
 
   return (
     <div
       draggable
       onDragStart={() => onDragStart(index)}
-      onDragOver={(e) => { e.preventDefault(); onDragOver(index); }}
+      onDragOver={e => { e.preventDefault(); onDragOver(index); }}
       onDrop={() => onDrop(index)}
-      style={{
-        display: 'flex', gap: '10px', alignItems: 'center',
-        opacity: isDragging ? 0.4 : 1,
-        transition: 'opacity 0.15s',
-        position: 'relative',
-      }}
+      style={{ display: 'flex', gap: '10px', alignItems: 'center', opacity: isDragging ? 0.4 : 1, transition: 'opacity 0.15s', position: 'relative' }}
     >
-      {/* Drag handle */}
-      <div style={{ cursor: 'grab', color: 'var(--muted)', fontSize: '16px', flexShrink: 0, userSelect: 'none', lineHeight: 1 }}>⠿</div>
-
-      {/* Avatar */}
+      <div style={{ cursor: 'grab', color: 'var(--muted)', fontSize: '16px', flexShrink: 0, userSelect: 'none' }}>⠿</div>
       <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: player.color, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px', fontWeight: 600, color: '#fff' }}>
         {player.name ? player.name[0].toUpperCase() : (index + 1)}
       </div>
-
-      {/* Name input */}
       <div style={{ flex: 1, position: 'relative' }}>
         <input
           placeholder={player.isOwner ? 'You' : `Player ${index + 1}`}
@@ -100,12 +74,10 @@ function PlayerRow({ player, index, total, onUpdate, onRemove, onDragStart, onDr
           onChange={e => handleNameChange(e.target.value)}
           style={{ width: '100%', background: player.isOwner ? 'var(--surface)' : undefined }}
         />
-
-        {/* Search results dropdown */}
         {!player.isOwner && searchResults.length > 0 && (
           <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', marginTop: '4px', overflow: 'hidden' }}>
             {searchResults.slice(0, 5).map(r => (
-              <div key={r.id} onClick={() => selectSearchResult(r)}
+              <div key={r.id} onClick={() => selectResult(r)}
                 style={{ padding: '10px 14px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px', borderBottom: '1px solid var(--border)', fontSize: '14px', color: 'var(--text)' }}
                 onMouseEnter={e => e.currentTarget.style.background = 'var(--surface)'}
                 onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -117,7 +89,7 @@ function PlayerRow({ player, index, total, onUpdate, onRemove, onDragStart, onDr
                 <span style={{ marginLeft: 'auto', fontSize: '11px', color: 'var(--muted)' }}>registered</span>
               </div>
             ))}
-            <div onClick={addAsGuest}
+            <div onClick={() => { onUpdate({ ...player, userId: null }); setSearchResults([]); }}
               style={{ padding: '10px 14px', cursor: 'pointer', fontSize: '13px', color: 'var(--muted)' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--surface)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
@@ -126,26 +98,124 @@ function PlayerRow({ player, index, total, onUpdate, onRemove, onDragStart, onDr
             </div>
           </div>
         )}
-
-        {/* Registered badge */}
         {player.userId && !player.isOwner && (
-          <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: 'var(--green)', fontWeight: 600, letterSpacing: '0.06em' }}>
-            ✓ registered
-          </div>
+          <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: 'var(--green)', fontWeight: 600 }}>✓ registered</div>
         )}
         {player.isOwner && (
-          <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: 'var(--accent)', fontWeight: 600, letterSpacing: '0.06em' }}>
-            you
-          </div>
+          <div style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', fontSize: '10px', color: 'var(--accent)', fontWeight: 600 }}>you</div>
         )}
       </div>
+      {!player.isOwner && total > 1
+        ? <button onClick={onRemove} style={{ background: 'none', color: 'var(--danger)', fontSize: '18px', flexShrink: 0, width: '32px' }}>×</button>
+        : <div style={{ width: '32px', flexShrink: 0 }} />
+      }
+    </div>
+  );
+}
 
-      {/* Remove button — not for owner */}
-      {!player.isOwner && total > 1 ? (
-        <button onClick={onRemove} style={{ background: 'none', color: 'var(--danger)', fontSize: '18px', flexShrink: 0, width: '32px' }}>×</button>
-      ) : (
-        <div style={{ width: '32px', flexShrink: 0 }} />
+// Room panel — shows code, QR, and live member list
+function RoomPanel({ room, onClose, onSelectMembers, players, setPlayers }) {
+  const [liveRoom, setLiveRoom] = useState(room);
+  const [qrUrl, setQrUrl] = useState('');
+  const pollRef = useRef(null);
+
+  const joinUrl = `${window.location.origin}/join/${room.code}`;
+
+  useEffect(() => {
+    // Generate QR using free API — no library needed
+    setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joinUrl)}&bgcolor=14141c&color=f0ede8&margin=10`);
+
+    // Poll for new members every 3 seconds
+    pollRef.current = setInterval(async () => {
+      try {
+        const updated = await api.getRoom(room.code);
+        setLiveRoom(updated);
+      } catch {}
+    }, 3000);
+
+    return () => clearInterval(pollRef.current);
+  }, []);
+
+  // Countdown timer
+  const [timeLeft, setTimeLeft] = useState('');
+  useEffect(() => {
+    const tick = () => {
+      const diff = new Date(room.expires_at) - new Date();
+      if (diff <= 0) { setTimeLeft('Expired'); return; }
+      const m = Math.floor(diff / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${m}:${s.toString().padStart(2, '0')}`);
+    };
+    tick();
+    const t = setInterval(tick, 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  function addMemberToPlayers(member) {
+    // Don't add if already in players list
+    if (players.some(p => p.userId === member.id)) return;
+    // Find first empty slot
+    const emptyIdx = players.findIndex(p => !p.name.trim() && !p.isOwner);
+    if (emptyIdx >= 0) {
+      setPlayers(prev => prev.map((p, i) => i === emptyIdx
+        ? { ...p, name: member.name, userId: member.id, color: member.avatar_color || COLORS[emptyIdx % COLORS.length] }
+        : p
+      ));
+    } else if (players.length < 4) {
+      setPlayers(prev => [...prev, { name: member.name, userId: member.id, color: member.avatar_color || COLORS[prev.length % COLORS.length], isOwner: false }]);
+    }
+  }
+
+  const guests = liveRoom.members.filter(m => m.id !== room.host_id);
+
+  return (
+    <div className="card" style={{ padding: '20px', marginBottom: '24px', border: '1px solid var(--accent)' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+        <div>
+          <p style={{ color: 'var(--muted)', fontSize: '11px', letterSpacing: '0.1em', marginBottom: '4px' }}>ROOM CODE</p>
+          <div style={{ fontFamily: 'Bebas Neue', fontSize: '42px', color: 'var(--accent)', letterSpacing: '0.2em', lineHeight: 1 }}>{room.code}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <p style={{ color: 'var(--muted)', fontSize: '11px', marginBottom: '2px' }}>Expires in</p>
+          <p style={{ color: timeLeft === 'Expired' ? 'var(--danger)' : 'var(--text)', fontSize: '18px', fontWeight: 600, fontFamily: 'Bebas Neue' }}>{timeLeft}</p>
+        </div>
+      </div>
+
+      {/* QR Code */}
+      {qrUrl && (
+        <div style={{ textAlign: 'center', marginBottom: '16px' }}>
+          <img src={qrUrl} alt="Room QR code" style={{ width: '160px', height: '160px', borderRadius: 'var(--radius-sm)' }} />
+          <p style={{ color: 'var(--muted)', fontSize: '11px', marginTop: '8px' }}>Friends scan this or type the code above</p>
+        </div>
       )}
+
+      {/* Live member list */}
+      <div style={{ marginBottom: '16px' }}>
+        <p style={{ color: 'var(--muted)', fontSize: '11px', letterSpacing: '0.1em', marginBottom: '10px' }}>
+          IN ROOM ({liveRoom.members.length})
+          {liveRoom.members.length === 1 && <span style={{ color: 'var(--muted)', fontSize: '11px', marginLeft: '8px' }}>· waiting for friends...</span>}
+        </p>
+        {liveRoom.members.map(m => {
+          const alreadyAdded = players.some(p => p.userId === m.id);
+          const isHost = m.id === room.host_id;
+          return (
+            <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+              <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: m.avatar_color || 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+                {m.name[0].toUpperCase()}
+              </div>
+              <span style={{ fontSize: '14px', color: 'var(--text)', flex: 1 }}>{m.name}</span>
+              {isHost && <span style={{ fontSize: '11px', color: 'var(--accent)' }}>host</span>}
+              {!isHost && (
+                alreadyAdded
+                  ? <span style={{ fontSize: '11px', color: 'var(--green)' }}>✓ added</span>
+                  : <button onClick={() => addMemberToPlayers(m)} style={{ fontSize: '12px', color: 'var(--accent)', background: 'none', border: '1px solid var(--accent)', borderRadius: '99px', padding: '3px 10px', cursor: 'pointer' }}>+ Add</button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <button className="btn-ghost" onClick={onClose} style={{ fontSize: '13px' }}>Close room</button>
     </div>
   );
 }
@@ -160,8 +230,9 @@ export default function Setup() {
   const [legsPerSet, setLegsPerSet] = useState(1);
   const [setsPerMatch, setSetsPerMatch] = useState(1);
   const [activePreset, setActivePreset] = useState('Casual');
+  const [room, setRoom] = useState(null);
+  const [roomLoading, setRoomLoading] = useState(false);
 
-  // Auto-populate logged-in user as Player 1
   const [players, setPlayers] = useState([
     { name: user?.name || '', color: COLORS[0], userId: user?.id || null, isOwner: !!user },
     { name: '', color: COLORS[1], userId: null, isOwner: false },
@@ -175,24 +246,20 @@ export default function Setup() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Drag state
   const dragIndex = useRef(null);
   const [dragOverIndex, setDragOverIndex] = useState(null);
 
   function handleDragStart(index) { dragIndex.current = index; }
   function handleDragOver(index) { setDragOverIndex(index); }
   function handleDrop(dropIndex) {
-    if (dragIndex.current === null || dragIndex.current === dropIndex) {
-      dragIndex.current = null; setDragOverIndex(null); return;
-    }
+    if (dragIndex.current === null || dragIndex.current === dropIndex) { dragIndex.current = null; setDragOverIndex(null); return; }
     setPlayers(prev => {
       const updated = [...prev];
       const [moved] = updated.splice(dragIndex.current, 1);
       updated.splice(dropIndex, 0, moved);
       return updated;
     });
-    dragIndex.current = null;
-    setDragOverIndex(null);
+    dragIndex.current = null; setDragOverIndex(null);
   }
 
   function applyPreset(preset) {
@@ -210,45 +277,56 @@ export default function Setup() {
     return `${formatLabel} ${setsPerMatch} sets · ${formatLabel} ${legsPerSet} legs per set — first to ${setsNeeded} sets wins`;
   }
 
-  async function resolvePlayerId(p) {
-    // Logged-in user
-    if (p.userId) return p.userId;
-    // Guest — create throwaway account
+  async function handleCreateRoom() {
+    if (!user) { setError('You must be signed in to create a room'); return; }
+    setRoomLoading(true);
     try {
-      const r = await api.register({
-        name: p.name.trim(),
-        email: `guest_${Date.now()}_${Math.random()}@guest.local`,
-        password: 'guest',
-      });
+      const r = await api.createRoom();
+      setRoom(r);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setRoomLoading(false);
+    }
+  }
+
+  async function handleCloseRoom() {
+    if (room) {
+      try { await api.closeRoom(room.code); } catch {}
+      setRoom(null);
+    }
+  }
+
+  async function resolvePlayerId(p) {
+    if (p.userId) return p.userId;
+    try {
+      const r = await api.register({ name: p.name.trim(), email: `guest_${Date.now()}_${Math.random()}@guest.local`, password: 'guest' });
       return r.user.id;
     } catch { return null; }
   }
 
   async function handleStart() {
-    setError('');
-    setLoading(true);
+    setError(''); setLoading(true);
     try {
       if (mode === 'singles') {
         const filledPlayers = players.filter(p => p.name.trim());
         if (filledPlayers.length < 1) throw new Error('Add at least 1 player');
-
         const playerIds = await Promise.all(filledPlayers.map(resolvePlayerId));
         const validIds = playerIds.filter(Boolean);
         if (!validIds.length) throw new Error('Could not create player records');
-
+        if (room) { try { await api.closeRoom(room.code); } catch {} }
         const game = await api.createGame({ mode: 'singles', ruleset, format, legsPerSet, setsPerMatch, players: validIds });
         navigate(`/game/${game.id}`);
       } else {
         const filledTeams = teams.filter(t => t.name.trim() && t.players.some(p => p.name.trim()));
         if (filledTeams.length < 2) throw new Error('Add at least 2 teams');
-
         const teamData = await Promise.all(filledTeams.map(async t => {
           const fp = t.players.filter(p => p.name.trim());
           if (fp.length !== 2) throw new Error(`Team "${t.name}" needs exactly 2 players`);
           const pIds = await Promise.all(fp.map(resolvePlayerId));
           return { name: t.name.trim(), players: pIds.filter(Boolean) };
         }));
-
+        if (room) { try { await api.closeRoom(room.code); } catch {} }
         const game = await api.createGame({ mode: 'teams', ruleset, format, legsPerSet, setsPerMatch, teams: teamData });
         navigate(`/game/${game.id}`);
       }
@@ -261,9 +339,7 @@ export default function Setup() {
 
   return (
     <div style={{ maxWidth: '480px', margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={() => navigate('/')} style={{ background: 'none', color: 'var(--muted)', fontSize: '13px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        ← Back
-      </button>
+      <button onClick={() => navigate('/')} style={{ background: 'none', color: 'var(--muted)', fontSize: '13px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '6px' }}>← Back</button>
 
       <h1 style={{ fontSize: '42px', color: 'var(--accent)', marginBottom: '24px' }}>NEW GAME</h1>
 
@@ -315,7 +391,7 @@ export default function Setup() {
               <p style={{ fontSize: '11px', color: 'var(--muted)' }}>Need {format === 'best_of' ? Math.ceil(legsPerSet / 2) : legsPerSet} to win a set</p>
             </div>
             <Stepper value={legsPerSet} min={1} max={11} onChange={v => {
-              if (format === 'best_of') { const goingUp = v > legsPerSet; let val = v; if (val % 2 === 0) val = goingUp ? val + 1 : val - 1; if (val < 1) val = 1; setLegsPerSet(val); }
+              if (format === 'best_of') { const up = v > legsPerSet; let val = v; if (val % 2 === 0) val = up ? val + 1 : val - 1; if (val < 1) val = 1; setLegsPerSet(val); }
               else setLegsPerSet(v);
               setActivePreset('Custom');
             }} />
@@ -326,7 +402,7 @@ export default function Setup() {
               <p style={{ fontSize: '11px', color: 'var(--muted)' }}>Need {format === 'best_of' ? Math.ceil(setsPerMatch / 2) : setsPerMatch} to win the match</p>
             </div>
             <Stepper value={setsPerMatch} min={1} max={11} onChange={v => {
-              if (format === 'best_of') { const goingUp = v > setsPerMatch; let val = v; if (val % 2 === 0) val = goingUp ? val + 1 : val - 1; if (val < 1) val = 1; setSetsPerMatch(val); }
+              if (format === 'best_of') { const up = v > setsPerMatch; let val = v; if (val % 2 === 0) val = up ? val + 1 : val - 1; if (val < 1) val = 1; setSetsPerMatch(val); }
               else setSetsPerMatch(v);
               setActivePreset('Custom');
             }} />
@@ -340,8 +416,26 @@ export default function Setup() {
       {/* Players (singles) */}
       {mode === 'singles' && (
         <div style={{ marginBottom: '24px' }}>
-          <p style={{ color: 'var(--muted)', fontSize: '12px', letterSpacing: '0.1em', marginBottom: '6px' }}>PLAYERS (max 4)</p>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+            <p style={{ color: 'var(--muted)', fontSize: '12px', letterSpacing: '0.1em' }}>PLAYERS (max 4)</p>
+            {user && !room && (
+              <button onClick={handleCreateRoom} disabled={roomLoading} style={{ background: 'none', color: 'var(--accent)', fontSize: '12px', border: '1px solid var(--accent)', borderRadius: '99px', padding: '4px 12px', cursor: 'pointer' }}>
+                {roomLoading ? '...' : '🔗 Create room'}
+              </button>
+            )}
+          </div>
           <p style={{ color: 'var(--muted)', fontSize: '11px', marginBottom: '12px' }}>⠿ Drag to reorder · Player 1 throws first</p>
+
+          {/* Room panel */}
+          {room && (
+            <RoomPanel
+              room={room}
+              onClose={handleCloseRoom}
+              players={players}
+              setPlayers={setPlayers}
+            />
+          )}
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
             {players.map((p, i) => (
               <PlayerRow

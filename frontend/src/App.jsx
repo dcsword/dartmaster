@@ -8,6 +8,7 @@ import History from './pages/History';
 import Login from './pages/Login';
 import PlayerProfile from './pages/PlayerProfile';
 import GameDetail from './pages/GameDetail';
+import JoinRoom from './pages/JoinRoom';
 import './index.css';
 
 export default function App() {
@@ -23,6 +24,8 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/player/:id" element={<PlayerProfile />} />
           <Route path="/game/:id/detail" element={<GameDetail />} />
+          <Route path="/join" element={<JoinRoom />} />
+          <Route path="/join/:code" element={<JoinRoom />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

@@ -20,6 +20,9 @@ export default function Home() {
         <button className="btn-primary" style={{ fontSize: '18px', padding: '16px', fontFamily: 'Bebas Neue', letterSpacing: '0.05em' }} onClick={() => navigate('/setup')}>
           NEW GAME
         </button>
+        <button className="btn-ghost" onClick={() => navigate('/join')}>
+          Join a Room
+        </button>
         <button className="btn-ghost" onClick={() => navigate('/history')}>
           Game History
         </button>

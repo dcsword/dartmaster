@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth.js';
 import playerRoutes from './routes/players.js';
 import gameRoutes from './routes/games.js';
+import roomRoutes from './routes/rooms.js';
 
 dotenv.config();
 
@@ -32,6 +33,7 @@ app.get('/health', (_, res) => res.json({ status: 'ok' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/players', playerRoutes);
 app.use('/api/games', gameRoutes);
+app.use('/api/rooms', roomRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);

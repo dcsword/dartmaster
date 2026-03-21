@@ -37,5 +37,11 @@ export const api = {
   getHistory: (limit = 20) => request('GET', `/games?limit=${limit}`),
   getCheckout: (gameId, score, ruleset) =>
     request('GET', `/games/${gameId}/checkout?score=${score}&ruleset=${ruleset}`),
-  getGameDetail: (id) => request('GET', `/games/${id}/detail`),  
+  getGameDetail: (id) => request('GET', `/games/${id}/detail`),
+
+  // Rooms
+  createRoom: () => request('POST', '/rooms'),
+  joinRoom: (code) => request('POST', '/rooms/join', { code }),
+  getRoom: (code) => request('GET', `/rooms/${code}`),
+  closeRoom: (code) => request('DELETE', `/rooms/${code}`),
 };
