@@ -2,8 +2,6 @@ import { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { api } from "../utils/api";
 
-const [legStarterIdx, setLegStarterIdx] = useState(0);
-
 const MULTIPLIERS = [
   { value: 1, label: "Single", short: "S" },
   { value: 2, label: "Double", short: "D" },
@@ -31,6 +29,7 @@ export default function Game() {
   const [lastTurn, setLastTurn] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [legResult, setLegResult] = useState(null); // { legWon, setWon, winnerName }
+  const [legStarterIdx, setLegStarterIdx] = useState(0);
 
   useEffect(() => {
     api
