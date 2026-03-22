@@ -109,11 +109,11 @@ function RoomPanel({ room, onClose, players, setPlayers }) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
         <div>
           <p style={{ color: 'var(--muted)', fontSize: '11px', letterSpacing: '0.1em', marginBottom: '4px' }}>ROOM CODE</p>
-          <div style={{ fontFamily: 'Bebas Neue', fontSize: '42px', color: 'var(--accent)', letterSpacing: '0.2em', lineHeight: 1 }}>{room.code}</div>
+          <div style={{ fontFamily: "Barlow Condensed", fontSize: '42px', color: 'var(--accent)', letterSpacing: '0.2em', lineHeight: 1 }}>{room.code}</div>
         </div>
         <div style={{ textAlign: 'right' }}>
           <p style={{ color: 'var(--muted)', fontSize: '11px', marginBottom: '2px' }}>Expires in</p>
-          <p style={{ color: timeLeft === 'Expired' ? 'var(--danger)' : 'var(--text)', fontSize: '18px', fontWeight: 600, fontFamily: 'Bebas Neue' }}>{timeLeft}</p>
+          <p style={{ color: timeLeft === 'Expired' ? 'var(--danger)' : 'var(--text)', fontSize: '18px', fontWeight: 600, fontFamily: "Barlow Condensed" }}>{timeLeft}</p>
         </div>
       </div>
       {qrUrl && (
@@ -399,7 +399,7 @@ export default function Setup() {
       )}
 
       {error && <p style={{ color: 'var(--danger)', marginBottom: '12px', fontSize: '14px' }}>{error}</p>}
-      <button className="btn-primary" onClick={handleStart} disabled={loading} style={{ fontSize: '18px', padding: '16px', fontFamily: 'Bebas Neue', letterSpacing: '0.05em' }}>
+      <button className="btn-primary" onClick={handleStart} disabled={loading} style={{ fontSize: '18px', padding: '16px', fontFamily: "Barlow Condensed", letterSpacing: '0.05em' }}>
         {loading ? 'STARTING...' : 'START GAME 🎯'}
       </button>
     </div>

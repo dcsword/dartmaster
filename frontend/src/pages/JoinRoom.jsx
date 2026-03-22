@@ -137,7 +137,7 @@ export default function JoinRoom() {
           maxLength={6}
           onChange={e => setCode(e.target.value.toUpperCase())}
           onKeyDown={e => e.key === 'Enter' && handleJoin()}
-          style={{ textAlign: 'center', fontSize: '22px', fontFamily: 'Bebas Neue', letterSpacing: '0.2em' }}
+          style={{ textAlign: 'center', fontSize: '22px', fontFamily: 'Barlow Condensed', letterSpacing: '0.2em' }}
         />
       </div>
 

@@ -5,10 +5,11 @@ import Setup from './pages/Setup';
 import Game from './pages/Game';
 import Win from './pages/Win';
 import History from './pages/History';
+import GameDetail from './pages/GameDetail';
 import Login from './pages/Login';
 import PlayerProfile from './pages/PlayerProfile';
-import GameDetail from './pages/GameDetail';
 import JoinRoom from './pages/JoinRoom';
+import Stats from './pages/Stats';
 import './index.css';
 
 export default function App() {
@@ -21,6 +22,7 @@ export default function App() {
           <Route path="/game/:id" element={<Game />} />
           <Route path="/win/:id" element={<Win />} />
           <Route path="/history" element={<History />} />
+          <Route path="/stats" element={<Stats />} />
           <Route path="/login" element={<Login />} />
           <Route path="/player/:id" element={<PlayerProfile />} />
           <Route path="/game/:id/detail" element={<GameDetail />} />

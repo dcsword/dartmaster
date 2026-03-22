@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import BottomNav from '../components/BottomNav';
 
 export default function History() {
   const navigate = useNavigate();
@@ -10,21 +11,15 @@ export default function History() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Collect all user IDs to filter by:
-    // 1. Logged-in user
-    // 2. Any guest IDs stored on this device
     const ids = [];
     if (user?.id) {
-      // Logged in — only show games for this registered account
       ids.push(user.id);
     } else {
-      // Not logged in — show games played as guest on this device
       try {
         const guestIds = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
         ids.push(...guestIds);
-      } catch { }
+      } catch {}
     }
-
     api.getHistory(30, ids)
       .then(g => { setGames(g); setLoading(false); })
       .catch(() => setLoading(false));
@@ -32,7 +27,7 @@ export default function History() {
 
   function formatDate(dt) {
     if (!dt) return '';
-    return new Date(dt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return new Date(dt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   }
 
   function duration(start, end) {
@@ -42,47 +37,52 @@ export default function History() {
   }
 
   return (
-    <div style={{ maxWidth: '600px', margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={() => navigate('/')} style={{ background: 'none', color: 'var(--muted)', fontSize: '13px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-        ← Back
-      </button>
+    <div className="with-nav" style={{ maxWidth: '480px', margin: '0 auto', padding: '20px 16px' }}>
 
-      <h1 style={{ fontSize: '42px', color: 'var(--accent)', marginBottom: '8px' }}>HISTORY</h1>
-      <p style={{ color: 'var(--muted)', fontSize: '13px', marginBottom: '24px' }}>
-        {user ? `Showing games for ${user.name}` : 'Showing games played on this device'}
+      <h1 style={{ fontSize: '48px', fontWeight: 800, color: 'var(--text)', lineHeight: 0.9, marginBottom: '6px' }}>HISTORY</h1>
+      <p className="label-xs" style={{ marginBottom: '24px' }}>
+        {user ? `Games for ${user.name}` : 'Games on this device'}
       </p>
 
-      {loading && <p style={{ color: 'var(--muted)' }}>Loading...</p>}
+      {loading && <div className="page-loading" style={{ height: '200px' }}>Loading...</div>}
+
       {!loading && games.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '48px', color: 'var(--muted)' }}>
-          <div style={{ fontSize: '48px', marginBottom: '12px' }}>🎯</div>
-          <p>No games played yet.</p>
-          <button className="btn-primary" style={{ marginTop: '16px', maxWidth: '200px' }} onClick={() => navigate('/setup')}>Play Now</button>
+        <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--muted)' }}>
+          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎯</div>
+          <p style={{ marginBottom: '20px' }}>No games played yet</p>
+          <button className="btn-primary" style={{ maxWidth: '200px', margin: '0 auto' }} onClick={() => navigate('/setup')}>Play Now</button>
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
         {games.map(g => (
-          <div key={g.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onClick={() => navigate(`/game/${g.id}/detail`)}>
-            <div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '4px' }}>
-                <span style={{ fontFamily: 'Bebas Neue', fontSize: '18px' }}>501</span>
-                <span className="tag" style={{ fontSize: '11px', padding: '2px 8px' }}>{g.mode}</span>
-                <span className="tag" style={{ fontSize: '11px', padding: '2px 8px' }}>{g.ruleset.replace(/_/g, ' ')}</span>
-              </div>
-              <div style={{ fontSize: '13px', color: 'var(--muted)' }}>{formatDate(g.started_at)}</div>
-              {(g.winner_name || g.winner_team_name) && (
-                <div style={{ fontSize: '13px', color: 'var(--green)', marginTop: '2px' }}>
-                  🏆 {g.mode === 'teams' ? g.winner_team_name : g.winner_name}
+          <div key={g.id} className="card" style={{ cursor: 'pointer', padding: '14px 16px' }} onClick={() => navigate(`/game/${g.id}/detail`)}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+              <div>
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
+                  <span style={{ fontFamily: 'Barlow Condensed', fontSize: '18px', fontWeight: 700 }}>501</span>
+                  <span className="tag" style={{ fontSize: '10px', padding: '2px 8px' }}>{g.mode}</span>
+                  <span className="tag" style={{ fontSize: '10px', padding: '2px 8px' }}>{g.ruleset.replace(/_/g, ' ')}</span>
                 </div>
-              )}
-            </div>
-            <div style={{ textAlign: 'right', color: 'var(--muted)', fontSize: '12px' }}>
-              {duration(g.started_at, g.finished_at)}
+                {(g.winner_name || g.winner_team_name) && (
+                  <div style={{ fontSize: '13px', color: 'var(--green)', marginBottom: '3px' }}>
+                    🏆 {g.mode === 'teams' ? g.winner_team_name : g.winner_name}
+                  </div>
+                )}
+                <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{formatDate(g.started_at)}</div>
+              </div>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontFamily: 'Barlow Condensed', fontSize: '22px', fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>
+                  {g.format === 'best_of' ? 'Bo' : g.format === 'first_to' ? 'FT' : ''}{g.legs_per_set || ''}
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>{duration(g.started_at, g.finished_at)}</div>
+              </div>
             </div>
           </div>
         ))}
       </div>
+
+      <BottomNav />
     </div>
   );
 }
