@@ -24,6 +24,7 @@ export const api = {
   // Auth
   register: (body) => request('POST', '/auth/register', body),
   login: (body) => request('POST', '/auth/login', body),
+  googleLogin: (idToken) => request('POST', '/auth/google', { idToken }),
 
   // Players
   searchPlayers: (q) => request('GET', `/players/search?q=${encodeURIComponent(q)}`),
