@@ -1,10 +1,10 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const FROM = 'DartMaster <onboarding@resend.dev>'; // ← change to your verified domain
+const FROM = 'DartMaster <noreply@yourdomain.com>'; // ← change to your verified domain
 
 export async function sendWelcomeEmail({ name, email }) {
   if (!process.env.RESEND_API_KEY) return; // silently skip if not configured
+  const resend = new Resend(process.env.RESEND_API_KEY); // lazy init — only when key exists
   try {
     await resend.emails.send({
       from: FROM,
