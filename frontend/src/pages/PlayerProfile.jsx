@@ -87,15 +87,7 @@ export default function PlayerProfile() {
             </button>
           )}
         </div>
-        {/* Sign out — below header, mobile only (sidebar has it on tablet+) */}
-        {isOwn && (
-          <button
-            className="sidebar-hidden-only"
-            onClick={() => { logout(); navigate('/'); }}
-            style={{ width: '100%', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius-xs)', padding: '10px', color: 'var(--muted)', fontSize: '13px' }}>
-            Sign out
-          </button>
-        )}
+
       </div>
 
       {/* Edit form */}
@@ -192,6 +184,15 @@ export default function PlayerProfile() {
         ))}
       </div>
 
+      {/* Discreet sign out — bottom of page, mobile only */}
+      {isOwn && (
+        <div className="sidebar-hidden-only" style={{ textAlign: 'center', padding: '16px 0 8px' }}>
+          <button onClick={() => { logout(); navigate('/'); }}
+            style={{ background: 'none', border: 'none', color: 'var(--muted2)', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}>
+            Sign out
+          </button>
+        </div>
+      )}
     </div>
     </Layout>
   );

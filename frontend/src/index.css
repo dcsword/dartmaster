@@ -238,9 +238,9 @@ select option { background: var(--bg3); }
 .btn-bull25 {
   padding: 10px;
   border-radius: var(--radius-xs);
-  background: rgba(240,160,48,0.06);
-  border: 1px solid rgba(240,160,48,0.2);
-  color: var(--amber);
+  background: rgba(45,203,117,0.08);
+  border: 1px solid rgba(45,203,117,0.3);
+  color: #2dcb75;
   font-size: 13px;
   font-weight: 600;
   font-family: 'Barlow Condensed', sans-serif;
@@ -249,9 +249,9 @@ select option { background: var(--bg3); }
 .btn-bull50 {
   padding: 10px;
   border-radius: var(--radius-xs);
-  background: var(--accent-tint);
-  border: 1px solid var(--accent-glow);
-  color: var(--accent);
+  background: rgba(232,41,60,0.08);
+  border: 1px solid rgba(232,41,60,0.3);
+  color: #e8293c;
   font-size: 13px;
   font-weight: 600;
   font-family: 'Barlow Condensed', sans-serif;

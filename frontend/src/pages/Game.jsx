@@ -115,15 +115,17 @@ export default function Game() {
   }
 
   async function handleBust() {
-    setSubmitting(true);
+    // Always submit a single miss (0) — the player physically busted,
+    // we just record the turn as wasted without trying to parse darts
+    setSubmitting(true); setDarts([]); setMultiplier(1);
     try {
       const player = getCurrentPlayer(); const team = getCurrentTeam();
       await api.submitTurn(id, {
-        darts: darts.length > 0 ? darts.map(d => d.value) : ["0"],
+        darts: ["0"],
         playerId: player?.id, teamId: team?.id,
       });
       const updated = await api.getGame(id);
-      setGame(updated); setDarts([]); setMultiplier(1); advanceTurn();
+      setGame(updated); advanceTurn();
     } catch (err) { setError(err.message); }
     finally { setSubmitting(false); }
   }
@@ -231,7 +233,7 @@ export default function Game() {
       {error && <p style={{ color: "var(--danger)", fontSize: "12px", textAlign: "center" }}>{error}</p>}
       {/* Bust / Done */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "6px" }}>
-        <button className="btn-bust" onClick={handleBust}>BUST</button>
+        {remaining <= 170 && <button className="btn-bust" onClick={handleBust} disabled={submitting}>BUST</button>}
         <button className={`btn-submit ${darts.length > 0 ? "ready" : "waiting"}`}
           onClick={submitTurn} disabled={darts.length === 0 || submitting}>
           {submitting ? "..." : darts.length === 3 ? "NEXT →" : `DONE (${darts.length}/3)`}
