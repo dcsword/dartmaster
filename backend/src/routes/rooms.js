@@ -100,7 +100,7 @@ router.post('/join', authMiddleware, async (req, res) => {
   );
 
   const members = await getRoomMembers(room.id);
-  res.json({ ...room, members });
+  res.json({ ...room, members, joiningUserId: req.user.id });
 });
 
 // ── GET /api/rooms/:code — get room members (host polls this) ────────────────

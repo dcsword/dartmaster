@@ -35,6 +35,14 @@ export default function JoinRoom() {
     setError('');
     try {
       const room = await api.joinRoom(joinCode);
+
+      // Save joining user's ID to localStorage so their history is trackable on this device
+      const stored = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
+      if (room.joiningUserId && !stored.includes(room.joiningUserId)) {
+        stored.push(room.joiningUserId);
+        localStorage.setItem('dm_guest_ids', JSON.stringify(stored));
+      }
+
       setJoined(room);
     } catch (err) {
       setError(err.message);

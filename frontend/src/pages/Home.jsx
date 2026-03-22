@@ -42,6 +42,7 @@ export default function Home() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', color: 'var(--muted)', fontSize: '13px' }}>
           <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--green)' }} />
           Signed in as <strong style={{ color: 'var(--text)' }}>{user.name}</strong>
+          {user.username && <span style={{ color: 'var(--muted)', fontSize: '12px' }}> @{user.username}</span>}
           <button onClick={logout} style={{ background: 'none', color: 'var(--muted)', fontSize: '12px', textDecoration: 'underline' }}>sign out</button>
         </div>
       )}
