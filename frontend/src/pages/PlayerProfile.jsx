@@ -17,7 +17,7 @@ const COUNTRIES = ['','Turkey','Netherlands','United Kingdom','Germany','France'
 export default function PlayerProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, login, applyTheme } = useAuth();
+  const { user, login, logout, applyTheme } = useAuth();
   const isOwn = user?.id === id;
 
   const [player, setPlayer] = useState(null);
@@ -80,10 +80,19 @@ export default function PlayerProfile() {
           </div>
         </div>
         {isOwn && (
-          <button onClick={() => setEditing(!editing)}
-            style={{ background: editing ? 'var(--accent-tint)' : 'transparent', border: `1px solid ${editing ? 'var(--accent-glow)' : 'var(--border)'}`, borderRadius: 'var(--radius-xs)', padding: '8px 12px', color: editing ? 'var(--accent)' : 'var(--muted)', fontSize: '12px', flexShrink: 0 }}>
-            {editing ? 'Cancel' : '✏️ Edit'}
-          </button>
+          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+            <button onClick={() => setEditing(!editing)}
+              style={{ background: editing ? 'var(--accent-tint)' : 'transparent', border: `1px solid ${editing ? 'var(--accent-glow)' : 'var(--border)'}`, borderRadius: 'var(--radius-xs)', padding: '8px 12px', color: editing ? 'var(--accent)' : 'var(--muted)', fontSize: '12px' }}>
+              {editing ? 'Cancel' : '✏️ Edit'}
+            </button>
+            {/* Sign out — only visible on mobile where sidebar is hidden */}
+            <button
+              className="sidebar-hidden-only"
+              onClick={() => { logout(); navigate('/'); }}
+              style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius-xs)', padding: '8px 12px', color: 'var(--muted)', fontSize: '12px' }}>
+              Sign out
+            </button>
+          </div>
         )}
       </div>
 

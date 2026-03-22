@@ -557,3 +557,9 @@ select option { background: var(--bg3); }
     gap: 10px;
   }
 }
+
+/* Sign out button — visible on mobile only, hidden on tablet/desktop where sidebar shows it */
+.sidebar-hidden-only { display: inline-flex; }
+@media (min-width: 768px) {
+  .sidebar-hidden-only { display: none !important; }
+}
