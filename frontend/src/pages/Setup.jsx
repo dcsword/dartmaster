@@ -29,35 +29,114 @@ function Stepper({ value, onChange, min = 1, max = 20 }) {
   );
 }
 
-// ── Drag handle — works with both mouse and touch ─────────────────────────────
-// listRef: ref to the container ul/div holding all draggable rows
-// index: this item's index
-// onDragStart/onDragOver/onDrop: same callbacks as before
+// ── Drag handle — mouse + touch with ghost preview ───────────────────────────
+// Touch drag creates a floating ghost that follows the finger,
+// dims the source row, and highlights the target — matching iOS list behaviour.
 function DragHandle({ index, listRef, onDragStart, onDragOver, onDrop }) {
-  const touchDragging = useRef(false);
+  const ghostRef = useRef(null);
+  const isDragging = useRef(false);
+  const startY = useRef(0);
+  const rowHeight = useRef(0);
 
-  function handleTouchStart(e) {
-    touchDragging.current = true;
-    onDragStart(index);
+  function createGhost(e) {
+    if (!listRef?.current) return;
+    const rows = listRef.current.querySelectorAll('[data-row-index]');
+    const sourceRow = rows[index];
+    if (!sourceRow) return;
+
+    const rect = sourceRow.getBoundingClientRect();
+    rowHeight.current = rect.height;
+    startY.current = e.touches[0].clientY;
+
+    // Clone the row as ghost
+    const ghost = sourceRow.cloneNode(true);
+    ghost.style.cssText = `
+      position: fixed;
+      left: ${rect.left}px;
+      top: ${rect.top}px;
+      width: ${rect.width}px;
+      z-index: 9999;
+      pointer-events: none;
+      opacity: 0.9;
+      background: var(--bg2);
+      border: 1px solid var(--accent);
+      border-radius: 10px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+      transition: none;
+    `;
+    document.body.appendChild(ghost);
+    ghostRef.current = ghost;
+
+    // Dim the source
+    sourceRow.style.opacity = '0.3';
   }
 
-  function handleTouchMove(e) {
-    if (!touchDragging.current) return;
-    e.preventDefault(); // stop page scroll while dragging
+  function moveGhost(e) {
+    if (!ghostRef.current || !listRef?.current) return;
     const touch = e.touches[0];
-    if (!listRef?.current) return;
+    const dy = touch.clientY - startY.current;
+
+    // Move ghost
+    const ghost = ghostRef.current;
+    const currentTop = parseFloat(ghost.style.top);
+    ghost.style.top = `${currentTop + dy}px`;
+    startY.current = touch.clientY;
+
+    // Find target row
     const rows = listRef.current.querySelectorAll('[data-row-index]');
     for (const row of rows) {
       const rect = row.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
       if (touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-        onDragOver(parseInt(row.dataset.rowIndex));
+        const targetIdx = parseInt(row.dataset.rowIndex);
+        onDragOver(targetIdx);
+        // Visual indicator on target
+        rows.forEach(r => r.style.borderTop = '');
+        if (targetIdx !== index) {
+          row.style.borderTop = touch.clientY < mid
+            ? '2px solid var(--accent)'
+            : '';
+          row.style.borderBottom = touch.clientY >= mid
+            ? '2px solid var(--accent)'
+            : '';
+        }
         break;
       }
     }
   }
 
+  function removeGhost() {
+    if (ghostRef.current) {
+      ghostRef.current.remove();
+      ghostRef.current = null;
+    }
+    // Restore all rows
+    if (listRef?.current) {
+      const rows = listRef.current.querySelectorAll('[data-row-index]');
+      rows.forEach(r => {
+        r.style.opacity = '';
+        r.style.borderTop = '';
+        r.style.borderBottom = '';
+      });
+    }
+  }
+
+  function handleTouchStart(e) {
+    e.preventDefault();
+    isDragging.current = true;
+    onDragStart(index);
+    createGhost(e);
+  }
+
+  function handleTouchMove(e) {
+    if (!isDragging.current) return;
+    e.preventDefault();
+    moveGhost(e);
+  }
+
   function handleTouchEnd() {
-    touchDragging.current = false;
+    isDragging.current = false;
+    removeGhost();
     onDrop();
   }
 
@@ -73,7 +152,7 @@ function DragHandle({ index, listRef, onDragStart, onDragOver, onDrop }) {
         flexShrink: 0,
         userSelect: 'none',
         padding: '8px 4px',
-        touchAction: 'none', // critical — prevents browser scroll hijack
+        touchAction: 'none',
       }}
     >
       ⠿
