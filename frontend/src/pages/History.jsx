@@ -14,11 +14,16 @@ export default function History() {
     // 1. Logged-in user
     // 2. Any guest IDs stored on this device
     const ids = [];
-    if (user?.id) ids.push(user.id);
-    try {
-      const guestIds = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
-      ids.push(...guestIds);
-    } catch {}
+    if (user?.id) {
+      // Logged in — only show games for this registered account
+      ids.push(user.id);
+    } else {
+      // Not logged in — show games played as guest on this device
+      try {
+        const guestIds = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
+        ids.push(...guestIds);
+      } catch { }
+    }
 
     api.getHistory(30, ids)
       .then(g => { setGames(g); setLoading(false); })
