@@ -251,10 +251,19 @@ router.get('/', async (req, res) => {
          FROM games g
          LEFT JOIN users u ON u.id = g.winner_id
          LEFT JOIN teams t ON t.id = g.winner_team_id
-         LEFT JOIN game_players gp ON gp.game_id = g.id
-         LEFT JOIN team_players tp ON tp.team_id IN (SELECT id FROM teams WHERE game_id = g.id)
          WHERE g.status = 'finished'
-           AND (gp.user_id = ANY($3) OR tp.user_id = ANY($3))
+           AND (
+             EXISTS (
+               SELECT 1 FROM game_players gp
+               WHERE gp.game_id = g.id AND gp.user_id = ANY($3)
+             )
+             OR
+             EXISTS (
+               SELECT 1 FROM team_players tp
+               JOIN teams tm ON tm.id = tp.team_id
+               WHERE tm.game_id = g.id AND tp.user_id = ANY($3)
+             )
+           )
          ORDER BY g.finished_at DESC LIMIT $1 OFFSET $2`,
         [limit, offset, userIds]
       );
