@@ -181,6 +181,7 @@ select option { background: var(--bg3); }
 /* ── Game numpad ─────────────────────────────────────── */
 .btn-numpad {
   padding: 10px 4px;
+  max-height: 56px;
   border-radius: var(--radius-xs);
   background: var(--bg3);
   border: 1px solid var(--border);
@@ -490,7 +491,7 @@ select option { background: var(--bg3); }
   min-height: 100vh;
 }
 
-@media (min-width: 1200px) {
+@media (min-width: 1400px) {
   .game-shell {
     flex-direction: row;
     margin-left: 240px;
@@ -529,6 +530,11 @@ select option { background: var(--bg3); }
 
   .game-mobile-only { display: none !important; }
   .game-desktop-col { display: flex !important; }
+}
+
+@media (max-width: 1399px) {
+  .game-desktop-col { display: none !important; }
+  .game-mobile-only { display: flex !important; }
 }
 
 /* Hide desktop cols on mobile/tablet */

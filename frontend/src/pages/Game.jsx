@@ -191,23 +191,13 @@ export default function Game() {
 
   // Reusable input panel (used in both mobile and desktop)
   const inputPanel = (
-    <div style={{ display: "flex", flexDirection: "column", gap: "5px", flex: 1 }}>
-      <div style={{ display: "flex", gap: "5px" }}>
-        <div style={{ display: "flex", gap: "4px", flexShrink: 0 }}>
-          {MULTIPLIERS.map(m => (
-            <button key={m.value} className={`btn-multiplier ${multiplier === m.value ? "active" : ""}`} style={{ width: "40px", padding: "9px 4px" }} onClick={() => setMultiplier(m.value)}>{m.short}</button>
-          ))}
-        </div>
-        <div style={{ display: "flex", gap: "4px", flex: 1 }}>
-          {[60, 45, 26, 0].map(v => (
-            <button key={v} onClick={() => v > 0 ? addDart(v / (multiplier <= 1 ? 1 : multiplier), multiplier) : addDart(0, 1)}
-              style={{ flex: 1, background: "var(--bg3)", border: "1px solid var(--border)", borderRadius: "var(--radius-xs)", padding: "9px 2px", fontFamily: "Barlow Condensed", fontSize: "15px", fontWeight: 700, color: "var(--muted)", cursor: "pointer" }}>
-              {v === 0 ? "Miss" : v}
-            </button>
-          ))}
-        </div>
+    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+      <div style={{ display: "flex", gap: "4px" }}>
+        {MULTIPLIERS.map(m => (
+          <button key={m.value} className={`btn-multiplier ${multiplier === m.value ? "active" : ""}`} style={{ flex: 1, padding: "10px 4px" }} onClick={() => setMultiplier(m.value)}>{m.short}</button>
+        ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "4px", flex: 1 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: "4px" }}>
         {[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20].map(n => (
           <button key={n} className="btn-numpad" onClick={() => addDart(n, multiplier)} disabled={darts.length >= 3 || n * multiplier > remaining}>{n}</button>
         ))}
