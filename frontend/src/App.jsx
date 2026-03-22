@@ -10,6 +10,7 @@ import Login from './pages/Login';
 import PlayerProfile from './pages/PlayerProfile';
 import JoinRoom from './pages/JoinRoom';
 import Stats from './pages/Stats';
+import Help from './pages/Help';
 import './index.css';
 
 export default function App() {
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/game/:id/detail" element={<GameDetail />} />
           <Route path="/join" element={<JoinRoom />} />
           <Route path="/join/:code" element={<JoinRoom />} />
+          <Route path="/help" element={<Help />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
