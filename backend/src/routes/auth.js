@@ -33,7 +33,7 @@ router.post('/register', async (req, res) => {
       const hash = await bcrypt.hash(password || 'guest', 10);
       const result = await query(
         `INSERT INTO users (name, email, password_hash)
-         VALUES ($1, $2, $3) RETURNING id, name, email, avatar_color, created_at`,
+         VALUES ($1, $2, $3) RETURNING id, name, email, avatar_color, theme_color, created_at`,
         [name.trim(), email.toLowerCase(), hash]
       );
       const user = result.rows[0];
@@ -77,7 +77,7 @@ router.post('/register', async (req, res) => {
     const result = await query(
       `INSERT INTO users (name, first_name, last_name, username, email, password_hash, birthday, country, city)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, name, first_name, last_name, username, email, avatar_color, birthday, country, city, created_at`,
+       RETURNING id, name, first_name, last_name, username, email, avatar_color, theme_color, theme_color, birthday, country, city, created_at`,
       [
         name.trim(),
         first_name?.trim() || null,
@@ -107,7 +107,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const result = await query(
-      `SELECT id, name, first_name, last_name, username, email, password_hash, avatar_color,
+      `SELECT id, name, first_name, last_name, username, email, password_hash, avatar_color, theme_color,
               birthday, country, city, bio, preferred_hand, avatar_url
        FROM users
        WHERE email = $1 OR LOWER(username) = LOWER($1)`,

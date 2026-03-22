@@ -5,13 +5,19 @@ import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
 
-const AVATAR_COLORS = ['#e8293c','#2dcb75','#00d4ff','#f0a030','#b060e0','#40c0b0','#4a9eff','#e0406080'];
+const AVATAR_COLORS = ['#e8293c','#2dcb75','#00d4ff','#f0a030','#b060e0','#40c0b0','#4a9eff','#e04060'];
+const THEME_OPTIONS = [
+  { color: '#e8293c', label: 'Red',  desc: 'Default' },
+  { color: '#00d4ff', label: 'Cyan', desc: 'Electric' },
+  { color: '#f0a030', label: 'Amber', desc: 'Warm' },
+  { color: '#2dcb75', label: 'Green', desc: 'Fresh' },
+];
 const COUNTRIES = ['','Turkey','Netherlands','United Kingdom','Germany','France','Spain','Italy','United States','Canada','Australia','Belgium','Sweden','Norway','Denmark','Finland','Poland','Portugal','Other'];
 
 export default function PlayerProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user, login } = useAuth();
+  const { user, login, applyTheme } = useAuth();
   const isOwn = user?.id === id;
 
   const [player, setPlayer] = useState(null);
@@ -26,7 +32,7 @@ export default function PlayerProfile() {
     Promise.all([api.getPlayer(id), api.getPlayerGames(id)])
       .then(([p, g]) => {
         setPlayer(p); setGames(g);
-        setForm({ name: p.name || '', first_name: p.first_name || '', last_name: p.last_name || '', username: p.username || '', bio: p.bio || '', country: p.country || '', city: p.city || '', preferred_hand: p.preferred_hand || '', birthday: p.birthday ? p.birthday.split('T')[0] : '', avatar_color: p.avatar_color || '#e8293c' });
+        setForm({ name: p.name || '', first_name: p.first_name || '', last_name: p.last_name || '', username: p.username || '', bio: p.bio || '', country: p.country || '', city: p.city || '', preferred_hand: p.preferred_hand || '', birthday: p.birthday ? p.birthday.split('T')[0] : '', avatar_color: p.avatar_color || '#e8293c', theme_color: p.theme_color || '#e8293c' });
       })
       .finally(() => setLoading(false));
   }, [id]);
@@ -41,6 +47,7 @@ export default function PlayerProfile() {
         const newUser = { ...stored, ...updated };
         localStorage.setItem('dm_user', JSON.stringify(newUser));
         login(newUser, localStorage.getItem('dm_token'));
+        if (updated.theme_color) applyTheme(updated.theme_color);
       }
       setEditing(false);
     } catch (err) { setSaveError(err.message); }
@@ -111,6 +118,28 @@ export default function PlayerProfile() {
               {AVATAR_COLORS.map(c => (
                 <div key={c} onClick={() => setForm(f => ({ ...f, avatar_color: c }))}
                   style={{ width: '32px', height: '32px', borderRadius: '50%', background: c, cursor: 'pointer', border: `3px solid ${form.avatar_color === c ? 'var(--text)' : 'transparent'}`, transition: 'border 0.15s' }} />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
+            <div className="label-xs" style={{ marginBottom: '4px' }}>App theme color</div>
+            <p style={{ fontSize: '11px', color: 'var(--muted)', marginBottom: '10px' }}>Changes the accent color throughout the entire app for you</p>
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              {THEME_OPTIONS.map(t => (
+                <div key={t.color} onClick={() => { setForm(f => ({ ...f, theme_color: t.color })); applyTheme(t.color); }}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <div style={{
+                    width: '48px', height: '48px', borderRadius: '12px',
+                    background: t.color,
+                    border: `3px solid ${form.theme_color === t.color ? 'var(--text)' : 'transparent'}`,
+                    transition: 'border 0.15s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {form.theme_color === t.color && <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#fff', opacity: 0.9 }} />}
+                  </div>
+                  <div style={{ fontSize: '10px', color: form.theme_color === t.color ? 'var(--text)' : 'var(--muted)', fontWeight: form.theme_color === t.color ? 600 : 400 }}>{t.label}</div>
+                </div>
               ))}
             </div>
           </div>

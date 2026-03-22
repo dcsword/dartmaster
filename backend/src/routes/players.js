@@ -11,7 +11,7 @@ router.get('/search', async (req, res) => {
     return res.status(400).json({ error: 'Query must be at least 2 characters' });
   try {
     const result = await query(
-      `SELECT id, name, username, avatar_color FROM users
+      `SELECT id, name, username, avatar_color, theme_color FROM users
        WHERE (name ILIKE $1 OR username ILIKE $1)
        AND email NOT LIKE '%@guest.local'
        AND username IS NOT NULL
@@ -28,7 +28,7 @@ router.get('/search', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const result = await query(
-      `SELECT u.id, u.name, u.first_name, u.last_name, u.username, u.avatar_color,
+      `SELECT u.id, u.name, u.first_name, u.last_name, u.username, u.avatar_color, u.theme_color,
               u.bio, u.country, u.city, u.preferred_hand, u.created_at,
               ps.games_played, ps.games_won, ps.total_darts, ps.total_score,
               ps.highest_checkout, ps.best_game_darts
@@ -70,7 +70,7 @@ router.get('/:id/games', async (req, res) => {
 
 // PATCH /api/players/me — update own profile
 router.patch('/me', authMiddleware, async (req, res) => {
-  const allowed = ['name', 'avatar_color', 'bio', 'first_name', 'last_name',
+  const allowed = ['name', 'avatar_color', 'theme_color', 'bio', 'first_name', 'last_name',
                    'country', 'city', 'preferred_hand', 'birthday'];
   const updates = [];
   const values = [];
@@ -103,7 +103,7 @@ router.patch('/me', authMiddleware, async (req, res) => {
     const result = await query(
       `UPDATE users SET ${updates.join(', ')}, updated_at = NOW()
        WHERE id = $${idx}
-       RETURNING id, name, first_name, last_name, username, email, avatar_color,
+       RETURNING id, name, first_name, last_name, username, email, avatar_color, theme_color,
                  bio, country, city, preferred_hand, birthday`,
       values
     );
