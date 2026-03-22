@@ -180,6 +180,29 @@ router.post('/:id/turn', async (req, res) => {
         [game.mode === 'singles' ? playerId : null, game.mode === 'teams' ? teamId : null, currentLeg.id]
       );
 
+      // Count total darts thrown in this leg by the winner — update best_game_darts
+      if (playerId) {
+        const legDartsResult = await client.query(
+          `SELECT COUNT(d.id) AS darts_thrown
+           FROM rounds r
+           JOIN darts d ON d.round_id = r.id
+           WHERE r.leg_id = $1 AND r.player_id = $2 AND r.is_bust = false`,
+          [currentLeg.id, playerId]
+        );
+        const dartsInLeg = parseInt(legDartsResult.rows[0].darts_thrown) || 0;
+        if (dartsInLeg > 0) {
+          await client.query(
+            `UPDATE player_stats SET
+               best_game_darts = CASE
+                 WHEN best_game_darts IS NULL OR best_game_darts = 0 THEN $1
+                 ELSE LEAST(best_game_darts, $1)
+               END
+             WHERE user_id = $2`,
+            [dartsInLeg, playerId]
+          );
+        }
+      }
+
       if (game.mode === 'singles') {
         await client.query('UPDATE game_players SET legs_won = legs_won + 1 WHERE game_id = $1 AND user_id = $2', [game.id, playerId]);
         if (setWon) await client.query('UPDATE game_players SET sets_won = sets_won + 1 WHERE game_id = $1 AND user_id = $2', [game.id, playerId]);
