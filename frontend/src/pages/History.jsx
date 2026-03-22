@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import BottomNav from '../components/BottomNav';
+import Layout from '../components/Layout';
 
 export default function History() {
   const navigate = useNavigate();
@@ -15,14 +15,9 @@ export default function History() {
     if (user?.id) {
       ids.push(user.id);
     } else {
-      try {
-        const guestIds = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
-        ids.push(...guestIds);
-      } catch {}
+      try { const g = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]'); ids.push(...g); } catch {}
     }
-    api.getHistory(30, ids)
-      .then(g => { setGames(g); setLoading(false); })
-      .catch(() => setLoading(false));
+    api.getHistory(30, ids).then(g => { setGames(g); setLoading(false); }).catch(() => setLoading(false));
   }, [user]);
 
   function formatDate(dt) {
@@ -37,52 +32,46 @@ export default function History() {
   }
 
   return (
-    <div className="with-nav" style={{ maxWidth: '480px', margin: '0 auto', padding: '20px 16px' }}>
+    <Layout>
+      <div className="page with-nav">
+        <h1 style={{ fontFamily: 'Barlow Condensed', fontSize: '48px', fontWeight: 800, color: 'var(--text)', lineHeight: 0.9, marginBottom: '6px' }}>HISTORY</h1>
+        <p className="label-xs" style={{ marginBottom: '24px' }}>{user ? `Games for ${user.name}` : 'Games on this device'}</p>
 
-      <h1 style={{ fontSize: '48px', fontWeight: 800, color: 'var(--text)', lineHeight: 0.9, marginBottom: '6px' }}>HISTORY</h1>
-      <p className="label-xs" style={{ marginBottom: '24px' }}>
-        {user ? `Games for ${user.name}` : 'Games on this device'}
-      </p>
+        {loading && <div style={{ color: 'var(--muted)', padding: '40px 0', textAlign: 'center' }}>Loading...</div>}
+        {!loading && games.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--muted)' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎯</div>
+            <p style={{ marginBottom: '20px' }}>No games played yet</p>
+            <button className="btn-primary" style={{ maxWidth: '200px', margin: '0 auto' }} onClick={() => navigate('/setup')}>Play Now</button>
+          </div>
+        )}
 
-      {loading && <div className="page-loading" style={{ height: '200px' }}>Loading...</div>}
-
-      {!loading && games.length === 0 && (
-        <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--muted)' }}>
-          <div style={{ fontSize: '48px', marginBottom: '16px' }}>🎯</div>
-          <p style={{ marginBottom: '20px' }}>No games played yet</p>
-          <button className="btn-primary" style={{ maxWidth: '200px', margin: '0 auto' }} onClick={() => navigate('/setup')}>Play Now</button>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        {games.map(g => (
-          <div key={g.id} className="card" style={{ cursor: 'pointer', padding: '14px 16px' }} onClick={() => navigate(`/game/${g.id}/detail`)}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
-                  <span style={{ fontFamily: 'Barlow Condensed', fontSize: '18px', fontWeight: 700 }}>501</span>
-                  <span className="tag" style={{ fontSize: '10px', padding: '2px 8px' }}>{g.mode}</span>
-                  <span className="tag" style={{ fontSize: '10px', padding: '2px 8px' }}>{g.ruleset.replace(/_/g, ' ')}</span>
-                </div>
-                {(g.winner_name || g.winner_team_name) && (
-                  <div style={{ fontSize: '13px', color: 'var(--green)', marginBottom: '3px' }}>
-                    🏆 {g.mode === 'teams' ? g.winner_team_name : g.winner_name}
+        <div className="history-grid">
+          {games.map(g => (
+            <div key={g.id} className="card" style={{ cursor: 'pointer', padding: '14px 16px' }} onClick={() => navigate(`/game/${g.id}/detail`)}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center', marginBottom: '6px' }}>
+                    <span style={{ fontFamily: 'Barlow Condensed', fontSize: '18px', fontWeight: 700 }}>501</span>
+                    <span className="tag" style={{ fontSize: '10px', padding: '2px 8px' }}>{g.mode}</span>
+                    <span className="tag" style={{ fontSize: '10px', padding: '2px 8px' }}>{g.ruleset.replace(/_/g, ' ')}</span>
                   </div>
-                )}
-                <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{formatDate(g.started_at)}</div>
-              </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontFamily: 'Barlow Condensed', fontSize: '22px', fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>
-                  {g.format === 'best_of' ? 'Bo' : g.format === 'first_to' ? 'FT' : ''}{g.legs_per_set || ''}
+                  {(g.winner_name || g.winner_team_name) && (
+                    <div style={{ fontSize: '13px', color: 'var(--green)', marginBottom: '3px' }}>🏆 {g.mode === 'teams' ? g.winner_team_name : g.winner_name}</div>
+                  )}
+                  <div style={{ fontSize: '11px', color: 'var(--muted)' }}>{formatDate(g.started_at)}</div>
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>{duration(g.started_at, g.finished_at)}</div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ fontFamily: 'Barlow Condensed', fontSize: '22px', fontWeight: 700, color: 'var(--accent)', lineHeight: 1 }}>
+                    {g.format === 'best_of' ? 'Bo' : g.format === 'first_to' ? 'FT' : ''}{g.legs_per_set || ''}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>{duration(g.started_at, g.finished_at)}</div>
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-
-      <BottomNav />
-    </div>
+    </Layout>
   );
 }

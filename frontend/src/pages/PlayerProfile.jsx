@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
+import Layout from '../components/Layout';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
-import BottomNav from '../components/BottomNav';
+
 
 const AVATAR_COLORS = ['#e8293c','#2dcb75','#00d4ff','#f0a030','#b060e0','#40c0b0','#4a9eff','#e0406080'];
 const COUNTRIES = ['','Turkey','Netherlands','United Kingdom','Germany','France','Spain','Italy','United States','Canada','Australia','Belgium','Sweden','Norway','Denmark','Finland','Poland','Portugal','Other'];
@@ -53,7 +54,8 @@ export default function PlayerProfile() {
   const fullName = [player.first_name, player.last_name].filter(Boolean).join(' ');
 
   return (
-    <div className="with-nav" style={{ maxWidth: '480px', margin: '0 auto', padding: '20px 16px' }}>
+    <Layout>
+    <div className="page with-nav">
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
@@ -150,7 +152,7 @@ export default function PlayerProfile() {
         ))}
       </div>
 
-      <BottomNav />
     </div>
+    </Layout>
   );
 }
