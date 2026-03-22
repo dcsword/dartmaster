@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const FROM = 'DartMaster <noreply@yourdomain.com>'; // ← change to your verified domain
+const FROM = 'DartMaster <onboarding@resend.dev>'; // ← change to your verified domain
 
 export async function sendWelcomeEmail({ name, email }) {
   if (!process.env.RESEND_API_KEY) return; // silently skip if not configured
