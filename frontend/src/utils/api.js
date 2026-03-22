@@ -29,6 +29,7 @@ export const api = {
   searchPlayers: (q) => request('GET', `/players/search?q=${encodeURIComponent(q)}`),
   getPlayer: (id) => request('GET', `/players/${id}`),
   getPlayerGames: (id) => request('GET', `/players/${id}/games`),
+  updateProfile: (body) => request('PATCH', '/players/me', body),
 
   // Games
   createGame: (body) => request('POST', '/games', body),
