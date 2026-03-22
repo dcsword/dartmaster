@@ -5,6 +5,7 @@ import authRoutes from './routes/auth.js';
 import playerRoutes from './routes/players.js';
 import gameRoutes from './routes/games.js';
 import roomRoutes from './routes/rooms.js';
+import statsRoutes from './routes/stats.js';
 
 dotenv.config();
 
@@ -34,6 +35,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/players', playerRoutes);
 app.use('/api/games', gameRoutes);
 app.use('/api/rooms', roomRoutes);
+app.use('/api/stats', statsRoutes);
 
 app.use((err, req, res, next) => {
   console.error(err);

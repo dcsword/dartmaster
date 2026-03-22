@@ -44,7 +44,9 @@ export const api = {
     request('GET', `/games/${gameId}/checkout?score=${score}&ruleset=${ruleset}`),
   getGameDetail: (id) => request('GET', `/games/${id}/detail`),
 
-  // Rooms
+  // Stats
+  getStats: (userId, range = 'all') => request('GET', `/stats/${userId}?range=${range}`),
+  getH2H: (player1, player2) => request('GET', `/stats/h2h/compare?player1=${player1}&player2=${player2}`),
   createRoom: () => request('POST', '/rooms'),
   joinRoom: (code) => request('POST', '/rooms/join', { code }),
   getRoom: (code) => request('GET', `/rooms/${code}`),

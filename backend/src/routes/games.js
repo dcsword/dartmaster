@@ -216,6 +216,10 @@ router.post('/:id/turn', async (req, res) => {
     if (!turnResult.isBust && playerId) {
       await client.query(`UPDATE player_stats SET total_darts = total_darts + $1, total_score = total_score + $2 WHERE user_id = $3`,
         [turnResult.dartsThrown, scoreThisTurn, playerId]);
+      // Track 180s — all 3 darts T20 (score 60 each)
+      if (turnResult.dartsThrown === 3 && turnResult.parsedDarts.every(d => d.score === 60)) {
+        await client.query(`UPDATE player_stats SET max_180s = max_180s + 1 WHERE user_id = $1`, [playerId]);
+      }
     }
 
     await client.query('COMMIT');
