@@ -41,9 +41,9 @@ export default function Home() {
         <div style={{ marginBottom: '28px' }}>
           <div className="label-xs" style={{ marginBottom: '10px' }}>Quick start</div>
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-            <button className="tag active" onClick={() => navigate('/setup')}>501 · 2 players</button>
-            <button className="tag" onClick={() => navigate('/setup')}>501 · 4 players</button>
-            <button className="tag" onClick={() => navigate('/setup')}>Teams · 2v2</button>
+            <button className="tag active" onClick={() => navigate('/setup', { state: { mode: 'singles', playerCount: 2 } })}>501 · 2 players</button>
+            <button className="tag" onClick={() => navigate('/setup', { state: { mode: 'singles', playerCount: 4 } })}>501 · 4 players</button>
+            <button className="tag" onClick={() => navigate('/setup', { state: { mode: 'teams' } })}>Teams · 2v2</button>
           </div>
         </div>
 

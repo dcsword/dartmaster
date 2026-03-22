@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,9 +12,9 @@ const RULESETS = [
 const COLORS = ['#e8593c', '#2dcb75', '#4a9eff', '#f0a050', '#b060e0', '#40c0b0'];
 
 const PRESETS = [
-  { label: 'Casual',   format: 'best_of',  legs: 1, sets: 1 },
-  { label: 'Bo3 legs', format: 'best_of',  legs: 3, sets: 1 },
-  { label: 'Bo5 legs', format: 'best_of',  legs: 5, sets: 1 },
+  { label: 'Casual',   format: 'first_to', legs: 1, sets: 1 },
+  { label: 'FT3 legs', format: 'first_to', legs: 3, sets: 1 },
+  { label: 'FT5 legs', format: 'first_to', legs: 5, sets: 1 },
   { label: '3 sets',   format: 'first_to', legs: 3, sets: 3 },
   { label: 'Custom',   format: null, legs: null, sets: null },
 ];
@@ -395,11 +395,12 @@ function RoomPanel({ room, onClose, players, setPlayers }) {
 // ── Main Setup page ───────────────────────────────────────────────────────────
 export default function Setup() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
 
   const [mode, setMode] = useState('singles');
   const [ruleset, setRuleset] = useState('double_out');
-  const [format, setFormat] = useState('best_of');
+  const [format, setFormat] = useState('first_to');
   const [legsPerSet, setLegsPerSet] = useState(1);
   const [setsPerMatch, setSetsPerMatch] = useState(1);
   const [activePreset, setActivePreset] = useState('Casual');
@@ -418,6 +419,21 @@ export default function Setup() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  // Apply quick start shortcuts from Home page
+  useEffect(() => {
+    const s = location.state;
+    if (!s) return;
+    if (s.mode) setMode(s.mode);
+    if (s.playerCount === 4) {
+      setPlayers([
+        { name: user?.name || '', color: COLORS[0], userId: user?.id || null, isOwner: !!user },
+        { name: '', color: COLORS[1], userId: null, isOwner: false },
+        { name: '', color: COLORS[2], userId: null, isOwner: false },
+        { name: '', color: COLORS[3], userId: null, isOwner: false },
+      ]);
+    }
+  }, []);
 
   // Singles drag state
   const playerListRef = useRef(null);

@@ -5,6 +5,8 @@ export default function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
+
+  function handleLogout() { logout(); navigate('/'); }
   const path = location.pathname;
 
   const items = [
@@ -101,7 +103,7 @@ export default function Sidebar() {
                 {user.username && <div style={{ fontSize: '11px', color: 'var(--accent)' }}>@{user.username}</div>}
               </div>
             </div>
-            <button onClick={logout} style={{ background: 'none', color: 'var(--muted)', fontSize: '11px', marginTop: '8px', textDecoration: 'underline', textAlign: 'left', padding: '0' }}>
+            <button onClick={handleLogout} style={{ background: 'none', color: 'var(--muted)', fontSize: '11px', marginTop: '8px', textDecoration: 'underline', textAlign: 'left', padding: '0' }}>
               Sign out
             </button>
           </div>
