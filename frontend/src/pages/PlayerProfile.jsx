@@ -65,34 +65,36 @@ export default function PlayerProfile() {
     <div className="page with-nav">
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-        <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
-          {player.name[0].toUpperCase()}
-        </div>
-        <div style={{ flex: 1 }}>
-          <h1 style={{ fontSize: '36px', fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{player.name}</h1>
-          {player.username && <div style={{ fontSize: '13px', color: 'var(--accent)', marginTop: '2px' }}>@{player.username}</div>}
-          {fullName && <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>{fullName}</div>}
-          {player.bio && <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px', fontStyle: 'italic' }}>"{player.bio}"</div>}
-          <div style={{ display: 'flex', gap: '8px', marginTop: '5px', flexWrap: 'wrap' }}>
-            {player.country && <span style={{ fontSize: '11px', color: 'var(--muted)' }}>📍 {player.city ? `${player.city}, ` : ''}{player.country}</span>}
-            {player.preferred_hand && <span style={{ fontSize: '11px', color: 'var(--muted)' }}>🎯 {player.preferred_hand === 'left' ? 'Left' : 'Right'} handed</span>}
+      <div style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+          <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: avatarColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '28px', fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+            {player.name[0].toUpperCase()}
           </div>
-        </div>
-        {isOwn && (
-          <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-            <button onClick={() => setEditing(!editing)}
-              style={{ background: editing ? 'var(--accent-tint)' : 'transparent', border: `1px solid ${editing ? 'var(--accent-glow)' : 'var(--border)'}`, borderRadius: 'var(--radius-xs)', padding: '8px 12px', color: editing ? 'var(--accent)' : 'var(--muted)', fontSize: '12px' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <h1 style={{ fontSize: '36px', fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{player.name}</h1>
+            {player.username && <div style={{ fontSize: '13px', color: 'var(--accent)', marginTop: '2px' }}>@{player.username}</div>}
+            {fullName && <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>{fullName}</div>}
+            {player.bio && <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px', fontStyle: 'italic' }}>"{player.bio}"</div>}
+            <div style={{ display: 'flex', gap: '8px', marginTop: '5px', flexWrap: 'wrap' }}>
+              {player.country && <span style={{ fontSize: '11px', color: 'var(--muted)' }}>📍 {player.city ? `${player.city}, ` : ''}{player.country}</span>}
+              {player.preferred_hand && <span style={{ fontSize: '11px', color: 'var(--muted)' }}>🎯 {player.preferred_hand === 'left' ? 'Left' : 'Right'} handed</span>}
+            </div>
+          </div>
+          {/* Edit button — always visible when own profile */}
+          {isOwn && (
+            <button onClick={() => setEditing(!editing)} style={{ flexShrink: 0, background: editing ? 'var(--accent-tint)' : 'transparent', border: `1px solid ${editing ? 'var(--accent-glow)' : 'var(--border)'}`, borderRadius: 'var(--radius-xs)', padding: '8px 12px', color: editing ? 'var(--accent)' : 'var(--muted)', fontSize: '12px' }}>
               {editing ? 'Cancel' : '✏️ Edit'}
             </button>
-            {/* Sign out — only visible on mobile where sidebar is hidden */}
-            <button
-              className="sidebar-hidden-only"
-              onClick={() => { logout(); navigate('/'); }}
-              style={{ background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius-xs)', padding: '8px 12px', color: 'var(--muted)', fontSize: '12px' }}>
-              Sign out
-            </button>
-          </div>
+          )}
+        </div>
+        {/* Sign out — below header, mobile only (sidebar has it on tablet+) */}
+        {isOwn && (
+          <button
+            className="sidebar-hidden-only"
+            onClick={() => { logout(); navigate('/'); }}
+            style={{ width: '100%', background: 'transparent', border: '1px solid var(--border)', borderRadius: 'var(--radius-xs)', padding: '10px', color: 'var(--muted)', fontSize: '13px' }}>
+            Sign out
+          </button>
         )}
       </div>
 
