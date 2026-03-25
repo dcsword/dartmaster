@@ -40,7 +40,24 @@ router.post('/', optionalAuth, async (req, res) => {
       }
     }
 
-    await client.query(`INSERT INTO legs (game_id, set_number, leg_number) VALUES ($1, 1, 1)`, [game.id]);
+    // Set first thrower when creating the initial leg
+    if (mode === 'singles') {
+      const firstPlayer = await client.query(
+        `SELECT user_id FROM game_players WHERE game_id = $1 ORDER BY "order" LIMIT 1`, [game.id]
+      );
+      await client.query(
+        `INSERT INTO legs (game_id, set_number, leg_number, current_thrower_id) VALUES ($1, 1, 1, $2)`,
+        [game.id, firstPlayer.rows[0]?.user_id || null]
+      );
+    } else {
+      const firstTeam = await client.query(
+        `SELECT id FROM teams WHERE game_id = $1 ORDER BY "order" LIMIT 1`, [game.id]
+      );
+      await client.query(
+        `INSERT INTO legs (game_id, set_number, leg_number, current_team_id) VALUES ($1, 1, 1, $2)`,
+        [game.id, firstTeam.rows[0]?.id || null]
+      );
+    }
     await client.query('COMMIT');
     const fullGame = await getGameState(game.id);
     res.status(201).json(fullGame);
@@ -116,6 +133,16 @@ router.post('/:id/turn', optionalAuth, async (req, res) => {
     );
     if (!legResult.rows.length) throw new Error('Active leg not found');
     const currentLeg = legResult.rows[0];
+
+    // ── Server-side turn order enforcement (#22) ─────────────────────────────
+    if (game.mode === 'singles' && currentLeg.current_thrower_id) {
+      if (playerId && playerId !== currentLeg.current_thrower_id)
+        throw new Error('Not your turn');
+    }
+    if (game.mode === 'teams' && currentLeg.current_team_id) {
+      if (teamId && teamId !== currentLeg.current_team_id)
+        throw new Error('Not your team\'s turn');
+    }
 
     let scoreBefore;
     if (game.mode === 'singles') {
@@ -236,7 +263,31 @@ router.post('/:id/turn', optionalAuth, async (req, res) => {
           await client.query('UPDATE teams SET score = $1 WHERE game_id = $2', [resetScore, game.id]);
         }
         await client.query('UPDATE games SET current_set = $1, current_leg = $2 WHERE id = $3', [nextSet, nextLeg, game.id]);
-        await client.query(`INSERT INTO legs (game_id, set_number, leg_number) VALUES ($1, $2, $3)`, [game.id, nextSet, nextLeg]);
+
+        // Set the next leg's first thrower — rotate from current
+        if (game.mode === 'singles') {
+          const plrs = await client.query(
+            `SELECT user_id FROM game_players WHERE game_id = $1 ORDER BY "order"`, [game.id]
+          );
+          const pIds = plrs.rows.map(r => r.user_id);
+          const curIdx = pIds.indexOf(playerId);
+          const nextFirst = pIds[(curIdx + 1) % pIds.length];
+          await client.query(
+            `INSERT INTO legs (game_id, set_number, leg_number, current_thrower_id) VALUES ($1, $2, $3, $4)`,
+            [game.id, nextSet, nextLeg, nextFirst]
+          );
+        } else {
+          const tms = await client.query(
+            `SELECT id FROM teams WHERE game_id = $1 ORDER BY "order"`, [game.id]
+          );
+          const tIds = tms.rows.map(r => r.id);
+          const curTIdx = tIds.indexOf(teamId);
+          const nextTeamFirst = tIds[(curTIdx + 1) % tIds.length];
+          await client.query(
+            `INSERT INTO legs (game_id, set_number, leg_number, current_team_id) VALUES ($1, $2, $3, $4)`,
+            [game.id, nextSet, nextLeg, nextTeamFirst]
+          );
+        }
       }
     }
 
