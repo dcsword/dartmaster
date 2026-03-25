@@ -17,12 +17,29 @@ function validateUsername(username) {
   return null;
 }
 
-function makeToken(user) {
+// Access token — short lived (15 min)
+function makeAccessToken(user) {
   return jwt.sign(
     { id: user.id, name: user.name, username: user.username },
     process.env.JWT_SECRET,
-    { expiresIn: '30d' }
+    { expiresIn: '15m' }
   );
+}
+
+// Refresh token — long lived (7 days), stored hashed in DB
+async function createRefreshToken(userId) {
+  const token = crypto.randomBytes(40).toString('hex');
+  const hash = crypto.createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
+  await query(
+    'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+    [userId, hash, expiresAt]
+  );
+  return token; // return raw token to send to client
+}
+
+function tokenResponse(user, accessToken, refreshToken) {
+  return { user, token: accessToken, refreshToken };
 }
 
 // ── POST /api/auth/register ───────────────────────────────────────────────────
@@ -41,7 +58,7 @@ router.post('/register', async (req, res) => {
       );
       const user = result.rows[0];
       await query('INSERT INTO player_stats (user_id) VALUES ($1)', [user.id]);
-      return res.status(201).json({ user, token: makeToken(user) });
+      return res.status(201).json({ user, token: makeAccessToken(user), refreshToken: null });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'Server error' });
@@ -90,7 +107,9 @@ router.post('/register', async (req, res) => {
     const user = result.rows[0];
     await query('INSERT INTO player_stats (user_id) VALUES ($1)', [user.id]);
     sendWelcomeEmail({ name: user.name, email: user.email });
-    res.status(201).json({ user, token: makeToken(user) });
+    const accessToken = makeAccessToken(user);
+    const refreshToken = await createRefreshToken(user.id);
+    res.status(201).json(tokenResponse(user, accessToken, refreshToken));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -118,7 +137,9 @@ router.post('/login', async (req, res) => {
     if (!valid) return res.status(401).json({ error: 'Invalid username/email or password' });
 
     const { password_hash, ...safeUser } = user;
-    res.json({ user: safeUser, token: makeToken(safeUser) });
+    const accessToken = makeAccessToken(safeUser);
+    const refreshToken = await createRefreshToken(safeUser.id);
+    res.json(tokenResponse(safeUser, accessToken, refreshToken));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -144,8 +165,12 @@ router.post('/google', async (req, res) => {
        FROM users WHERE google_id = $1`,
       [googleId]
     );
-    if (result.rows.length > 0)
-      return res.json({ user: result.rows[0], token: makeToken(result.rows[0]), isNew: false });
+    if (result.rows.length > 0) {
+      const u = result.rows[0];
+      const accessToken = makeAccessToken(u);
+      const refreshToken = await createRefreshToken(u.id);
+      return res.json(tokenResponse(u, accessToken, refreshToken));
+    }
 
     // Email already registered — link Google to existing account
     const emailCheck = await query('SELECT id FROM users WHERE email = $1', [email.toLowerCase()]);
@@ -157,7 +182,10 @@ router.post('/google', async (req, res) => {
          FROM users WHERE email = $1`,
         [email.toLowerCase()]
       );
-      return res.json({ user: linked.rows[0], token: makeToken(linked.rows[0]), isNew: false, linked: true });
+      const lu = linked.rows[0];
+      const lat = makeAccessToken(lu);
+      const lrt = await createRefreshToken(lu.id);
+      return res.json({ ...tokenResponse(lu, lat, lrt), isNew: false, linked: true });
     }
 
     // New user — auto-generate unique username
@@ -180,7 +208,9 @@ router.post('/google', async (req, res) => {
     const user = newUser.rows[0];
     await query('INSERT INTO player_stats (user_id) VALUES ($1)', [user.id]);
     sendWelcomeEmail({ name: user.name, email: user.email });
-    res.status(201).json({ user, token: makeToken(user), isNew: true });
+    const gat = makeAccessToken(user);
+    const grt = await createRefreshToken(user.id);
+    res.status(201).json({ ...tokenResponse(user, gat, grt), isNew: true });
   } catch (err) {
     console.error('Google auth error:', err);
     res.status(401).json({ error: 'Google sign-in failed — please try again' });
@@ -188,3 +218,52 @@ router.post('/google', async (req, res) => {
 });
 
 export default router;
+
+// ── POST /api/auth/refresh ────────────────────────────────────────────────────
+// Exchange a valid refresh token for a new access token
+router.post('/refresh', async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(400).json({ error: 'Refresh token required' });
+
+  try {
+    const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    const result = await query(
+      `SELECT rt.user_id, rt.expires_at, u.id, u.name, u.username, u.email,
+              u.avatar_color, u.theme_color, u.first_name, u.last_name
+       FROM refresh_tokens rt
+       JOIN users u ON u.id = rt.user_id
+       WHERE rt.token_hash = $1`,
+      [hash]
+    );
+
+    if (!result.rows.length)
+      return res.status(401).json({ error: 'Invalid refresh token' });
+
+    const row = result.rows[0];
+    if (new Date(row.expires_at) < new Date())
+      return res.status(401).json({ error: 'Refresh token expired — please log in again' });
+
+    // Issue new access token
+    const accessToken = makeAccessToken(row);
+    res.json({ token: accessToken });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ── POST /api/auth/logout ─────────────────────────────────────────────────────
+// Revoke the refresh token — truly invalidates the session
+router.post('/logout', async (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) return res.status(200).json({ ok: true }); // already logged out
+
+  try {
+    const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+    await query('DELETE FROM refresh_tokens WHERE token_hash = $1', [hash]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});

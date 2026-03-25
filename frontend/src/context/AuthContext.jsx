@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useRef } from 'react';
 
 const AuthContext = createContext(null);
 
@@ -9,7 +9,7 @@ const THEME_COLORS = {
   '#2dcb75': { accent: '#2dcb75', tint: 'rgba(45,203,117,0.1)', glow: 'rgba(45,203,117,0.25)' },
 };
 
-function applyTheme(color) {
+export function applyTheme(color) {
   const theme = THEME_COLORS[color] || THEME_COLORS['#e8293c'];
   const root = document.documentElement;
   root.style.setProperty('--accent',      theme.accent);
@@ -27,29 +27,80 @@ if (stored) {
 }
 
 export function AuthProvider({ children }) {
+  // Wire the refresh function into api.js so it can auto-refresh tokens
+  // We do this lazily to avoid circular imports
   const [user, setUser] = useState(() => {
-    const u = localStorage.getItem('dm_user');
-    return u ? JSON.parse(u) : null;
+    try { return JSON.parse(localStorage.getItem('dm_user') || 'null'); } catch { return null; }
   });
+  const refreshInFlight = useRef(null);
 
-  function login(userData, token) {
+  function login(userData, token, refreshToken) {
     localStorage.setItem('dm_token', token);
+    if (refreshToken) localStorage.setItem('dm_refresh_token', refreshToken);
     localStorage.setItem('dm_user', JSON.stringify(userData));
     setUser(userData);
-    // Apply theme immediately on login
     if (userData?.theme_color) applyTheme(userData.theme_color);
     else applyTheme('#e8293c');
   }
 
   function logout() {
+    // Tell backend to revoke the refresh token
+    const refreshToken = localStorage.getItem('dm_refresh_token');
+    if (refreshToken) {
+      fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      }).catch(() => {});
+    }
     localStorage.removeItem('dm_token');
+    localStorage.removeItem('dm_refresh_token');
     localStorage.removeItem('dm_user');
     setUser(null);
-    applyTheme('#e8293c'); // reset to default red on logout
+    applyTheme('#e8293c');
   }
 
+  // Called by api.js when it gets a TOKEN_EXPIRED response
+  // Returns new access token or null if refresh fails
+  async function refreshAccessToken() {
+    const refreshToken = localStorage.getItem('dm_refresh_token');
+    if (!refreshToken) return null;
+
+    // Deduplicate concurrent refresh calls
+    if (refreshInFlight.current) return refreshInFlight.current;
+
+    refreshInFlight.current = (async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/refresh`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        localStorage.setItem('dm_token', data.token);
+        return data.token;
+      } catch {
+        // Refresh failed — log out
+        logout();
+        return null;
+      } finally {
+        refreshInFlight.current = null;
+      }
+    })();
+
+    return refreshInFlight.current;
+  }
+
+  // Register refresh function with api.js (lazy import avoids circular deps)
+  useState(() => {
+    import('../utils/api.js').then(({ setRefreshFn }) => {
+      setRefreshFn(refreshAccessToken);
+    });
+  });
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, applyTheme }}>
+    <AuthContext.Provider value={{ user, login, logout, applyTheme, refreshAccessToken }}>
       {children}
     </AuthContext.Provider>
   );
