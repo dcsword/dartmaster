@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import QRCode from 'qrcode';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
@@ -310,14 +311,18 @@ function TeamCard({
 // ── Room panel ────────────────────────────────────────────────────────────────
 function RoomPanel({ room, onClose, players, setPlayers }) {
   const [liveRoom, setLiveRoom] = useState(room);
-  const [qrUrl, setQrUrl] = useState('');
+  const [qrDataUrl, setQrDataUrl] = useState('');
   const pollRef = useRef(null);
   const [timeLeft, setTimeLeft] = useState('');
 
   const joinUrl = `${window.location.origin}/join/${room.code}`;
 
   useState(() => {
-    setQrUrl(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(joinUrl)}&bgcolor=14141c&color=f0ede8&margin=10`);
+    QRCode.toDataURL(joinUrl, {
+      width: 200,
+      margin: 2,
+      color: { dark: '#f0ede8', light: '#14141c' },
+    }).then(setQrDataUrl).catch(console.error);
     pollRef.current = setInterval(async () => {
       try { const updated = await api.getRoom(room.code); setLiveRoom(updated); } catch {}
     }, 3000);

@@ -1,5 +1,15 @@
 import { Resend } from 'resend';
 
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#x27;');
+}
+
 const FROM = 'DartMaster <onboarding@resend.dev>'; // ← change to your verified domain
 
 export async function sendWelcomeEmail({ name, email }) {
@@ -28,7 +38,7 @@ export async function sendWelcomeEmail({ name, email }) {
 
                 <!-- Body -->
                 <tr><td style="padding:32px;">
-                  <h2 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#f0ede8;">Welcome, ${name}! 👋</h2>
+                  <h2 style="margin:0 0 12px;font-size:22px;font-weight:700;color:#f0ede8;">Welcome, ${escapeHtml(name)}! 👋</h2>
                   <p style="margin:0 0 20px;font-size:15px;color:#888899;line-height:1.6;">
                     Your DartMaster account is ready. Track your games, compete with friends and watch your average improve over time.
                   </p>
@@ -72,7 +82,7 @@ export async function sendWelcomeEmail({ name, email }) {
                 <tr><td style="padding:20px 32px;border-top:1px solid #2a2a2a;text-align:center;">
                   <p style="margin:0;font-size:12px;color:#404050;">
                     You're receiving this because you created a DartMaster account.<br>
-                    Your username: <strong style="color:#e8293c;">@${name.toLowerCase().replace(/\s+/g, '_')}</strong>
+                    Your username: <strong style="color:#e8293c;">@${escapeHtml(name.toLowerCase().replace(/\s+/g, '_'))}</strong>
                   </p>
                 </td></tr>
 

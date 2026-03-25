@@ -1,12 +1,17 @@
 import express from 'express';
+import { optionalAuth } from '../middleware/auth.js';
 import { query } from '../db/pool.js';
 
 const router = express.Router();
 
 // ── GET /api/stats/:userId?range=all|30d|7d ───────────────────────────────────
-router.get('/:userId', async (req, res) => {
+router.get('/:userId', optionalAuth, async (req, res) => {
   const { userId } = req.params;
   const range = req.query.range || 'all';
+
+  // Explicit allowlist — prevents SQL injection via string concatenation
+  if (!['all', '30d', '7d'].includes(range))
+    return res.status(400).json({ error: 'Invalid range' });
 
   // Date filter
   let dateFilter = '';
@@ -102,7 +107,7 @@ router.get('/:userId', async (req, res) => {
 });
 
 // ── GET /api/stats/h2h?player1=id&player2=id ─────────────────────────────────
-router.get('/h2h/compare', async (req, res) => {
+router.get('/h2h/compare', optionalAuth, async (req, res) => {
   const { player1, player2 } = req.query;
   if (!player1 || !player2)
     return res.status(400).json({ error: 'player1 and player2 required' });

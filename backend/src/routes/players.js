@@ -1,14 +1,18 @@
 import express from 'express';
+import { authMiddleware, optionalAuth } from '../middleware/auth.js';
 import { query } from '../db/pool.js';
-import { authMiddleware } from '../middleware/auth.js';
 
 const router = express.Router();
 
 // GET /api/players/search?q=name
-router.get('/search', async (req, res) => {
+router.get('/search', authMiddleware, async (req, res) => {
   const { q } = req.query;
   if (!q || q.length < 2)
     return res.status(400).json({ error: 'Query must be at least 2 characters' });
+  if (q.length > 30)
+    return res.status(400).json({ error: 'Query too long' });
+  // Sanitize ILIKE wildcards to prevent full-table abuse
+  const safe = q.replace(/[%_\\]/g, '\\$&');
   try {
     const result = await query(
       `SELECT id, name, username, avatar_color, theme_color FROM users
@@ -16,7 +20,7 @@ router.get('/search', async (req, res) => {
        AND email NOT LIKE '%@guest.local'
        AND username IS NOT NULL
        LIMIT 10`,
-      [`%${q}%`]
+      [`%${safe}%`]
     );
     res.json(result.rows);
   } catch (err) {
@@ -70,6 +74,18 @@ router.get('/:id/games', async (req, res) => {
 
 // PATCH /api/players/me — update own profile
 router.patch('/me', authMiddleware, async (req, res) => {
+  // Validate field lengths and formats before update
+  if (req.body.bio?.length > 160)
+    return res.status(400).json({ error: 'Bio must be 160 characters or less' });
+  if (req.body.name?.length > 50)
+    return res.status(400).json({ error: 'Name too long' });
+  if (req.body.first_name?.length > 50 || req.body.last_name?.length > 50)
+    return res.status(400).json({ error: 'Name fields too long' });
+  if (req.body.avatar_color && !/^#[0-9a-fA-F]{6}$/.test(req.body.avatar_color))
+    return res.status(400).json({ error: 'Invalid avatar color format' });
+  if (req.body.theme_color && !/^#[0-9a-fA-F]{6}$/.test(req.body.theme_color))
+    return res.status(400).json({ error: 'Invalid theme color format' });
+
   const allowed = ['name', 'avatar_color', 'theme_color', 'bio', 'first_name', 'last_name',
                    'country', 'city', 'preferred_hand', 'birthday'];
   const updates = [];

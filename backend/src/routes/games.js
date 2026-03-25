@@ -1,6 +1,6 @@
 import express from 'express';
 import { query, getClient } from '../db/pool.js';
-import { optionalAuth } from '../middleware/auth.js';
+import { authMiddleware, optionalAuth } from '../middleware/auth.js';
 import { processTurn, getCheckout, checkMatchProgress } from '../logic/gameLogic.js';
 
 const router = express.Router();
@@ -53,7 +53,7 @@ router.post('/', optionalAuth, async (req, res) => {
   }
 });
 
-router.get('/:id/detail', async (req, res) => {
+router.get('/:id/detail', optionalAuth, async (req, res) => {
   try {
     const gameResult = await query('SELECT * FROM games WHERE id = $1', [req.params.id]);
     if (!gameResult.rows.length) return res.status(404).json({ error: 'Game not found' });
@@ -82,7 +82,7 @@ router.get('/:id/detail', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
   try {
     const game = await getGameState(req.params.id);
     if (!game) return res.status(404).json({ error: 'Game not found' });
@@ -92,10 +92,15 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/:id/turn', async (req, res) => {
+router.post('/:id/turn', optionalAuth, async (req, res) => {
   const { playerId, teamId, darts } = req.body;
   if (!darts || !Array.isArray(darts) || darts.length === 0 || darts.length > 3)
     return res.status(400).json({ error: 'darts must be an array of 1–3 values' });
+
+  // If authenticated, verify the user is submitting for themselves (#7 + #10)
+  // Guest players (no token) are still allowed — they're identified by playerId only
+  if (req.user && playerId && req.user.id !== playerId)
+    return res.status(403).json({ error: 'You can only submit darts for yourself' });
 
   const client = await getClient();
   try {
@@ -260,7 +265,7 @@ router.post('/:id/turn', async (req, res) => {
   }
 });
 
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit) || 20, 100);
   const offset = parseInt(req.query.offset) || 0;
 
