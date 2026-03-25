@@ -24,6 +24,10 @@ export default function PlayerProfile() {
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteInput, setDeleteInput] = useState('');
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [form, setForm] = useState({});
@@ -52,6 +56,22 @@ export default function PlayerProfile() {
       setEditing(false);
     } catch (err) { setSaveError(err.message); }
     finally { setSaving(false); }
+  }
+
+  async function handleDeleteAccount() {
+    if (deleteInput !== 'DELETE') {
+      setDeleteError('Type DELETE to confirm');
+      return;
+    }
+    setDeleting(true); setDeleteError('');
+    try {
+      await api.deleteAccount();
+      logout();
+      navigate('/');
+    } catch (err) {
+      setDeleteError(err.message);
+      setDeleting(false);
+    }
   }
 
   if (loading) return <div className="page-loading">Loading...</div>;
@@ -183,6 +203,48 @@ export default function PlayerProfile() {
           </div>
         ))}
       </div>
+
+      {/* Delete account section — own profile only */}
+      {isOwn && (
+        <div style={{ marginTop: '32px', paddingTop: '20px', borderTop: '1px solid var(--border)', maxWidth: '480px' }}>
+          {!showDeleteConfirm ? (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <div style={{ fontSize: '13px', fontWeight: 500, color: 'var(--text)', marginBottom: '2px' }}>Delete account</div>
+                <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Permanently removes your account and all data</div>
+              </div>
+              <button onClick={() => setShowDeleteConfirm(true)}
+                style={{ background: 'rgba(255,77,77,0.08)', border: '1px solid rgba(255,77,77,0.25)', borderRadius: 'var(--radius-xs)', padding: '8px 14px', color: 'var(--danger)', fontSize: '12px', cursor: 'pointer', flexShrink: 0 }}>
+                Delete
+              </button>
+            </div>
+          ) : (
+            <div style={{ background: 'rgba(255,77,77,0.06)', border: '1px solid rgba(255,77,77,0.2)', borderRadius: 'var(--radius)', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--danger)' }}>⚠️ This cannot be undone</div>
+              <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                Your account, game history, and stats will be permanently deleted. Type <strong style={{ color: 'var(--text)' }}>DELETE</strong> to confirm.
+              </p>
+              <input
+                placeholder="Type DELETE to confirm"
+                value={deleteInput}
+                onChange={e => setDeleteInput(e.target.value)}
+                style={{ borderColor: 'rgba(255,77,77,0.3)' }}
+              />
+              {deleteError && <p style={{ color: 'var(--danger)', fontSize: '12px' }}>{deleteError}</p>}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button onClick={() => { setShowDeleteConfirm(false); setDeleteInput(''); setDeleteError(''); }}
+                  className="btn-ghost" style={{ flex: 1, fontSize: '13px' }}>
+                  Cancel
+                </button>
+                <button onClick={handleDeleteAccount} disabled={deleting}
+                  style={{ flex: 1, background: 'var(--danger)', border: 'none', borderRadius: 'var(--radius-xs)', padding: '10px', color: '#fff', fontSize: '13px', fontWeight: 600, cursor: 'pointer', opacity: deleting ? 0.6 : 1 }}>
+                  {deleting ? 'Deleting...' : 'Delete my account'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Discreet sign out — bottom of page, mobile only */}
       {isOwn && (

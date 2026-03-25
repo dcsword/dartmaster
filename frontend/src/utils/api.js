@@ -38,6 +38,7 @@ export const api = {
   googleLogin: (idToken)        => request('POST', '/auth/google', { idToken }),
   refresh:     (refreshToken)   => request('POST', '/auth/refresh', { refreshToken }),
   logout:      (refreshToken)   => request('POST', '/auth/logout', { refreshToken }),
+  deleteAccount: ()               => request('DELETE', '/auth/account'),
 
   // Players
   searchPlayers: (q)    => request('GET', `/players/search?q=${encodeURIComponent(q)}`),

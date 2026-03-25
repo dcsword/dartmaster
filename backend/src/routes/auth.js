@@ -1,4 +1,5 @@
 import express from 'express';
+import { authMiddleware } from '../middleware/auth.js';
 import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
@@ -214,6 +215,52 @@ router.post('/google', async (req, res) => {
   } catch (err) {
     console.error('Google auth error:', err);
     res.status(401).json({ error: 'Google sign-in failed — please try again' });
+  }
+});
+
+
+// ── DELETE /api/auth/account ──────────────────────────────────────────────────
+// Permanently delete the authenticated user's account and all associated data
+// Required for App Store / Play Store compliance
+router.delete('/account', authMiddleware, async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    // 1. Nullify winner_id on games (not cascaded in schema)
+    await query(
+      `UPDATE games SET winner_id = NULL WHERE winner_id = $1`,
+      [userId]
+    );
+
+    // 2. Nullify winner_id on legs
+    await query(
+      `UPDATE legs SET winner_id = NULL WHERE winner_id = $1`,
+      [userId]
+    );
+
+    // 3. Nullify current_thrower_id on legs
+    await query(
+      `UPDATE legs SET current_thrower_id = NULL WHERE current_thrower_id = $1`,
+      [userId]
+    );
+
+    // 4. Revoke all refresh tokens
+    await query(
+      `DELETE FROM refresh_tokens WHERE user_id = $1`,
+      [userId]
+    );
+
+    // 5. Delete the user — cascades to:
+    //    player_stats, game_players, team_players, rounds (via game_players)
+    await query(
+      `DELETE FROM users WHERE id = $1`,
+      [userId]
+    );
+
+    res.json({ ok: true, message: 'Account deleted successfully' });
+  } catch (err) {
+    console.error('Account deletion error:', err);
+    res.status(500).json({ error: 'Failed to delete account — please try again' });
   }
 });
 
