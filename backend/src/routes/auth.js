@@ -27,6 +27,14 @@ function makeAccessToken(user) {
   );
 }
 
+function makeGuestAccessToken(user) {
+  return jwt.sign(
+    { id: user.id, name: user.name, username: user.username || null },
+    process.env.JWT_SECRET,
+    { expiresIn: '30d' }
+  );
+}
+
 // Refresh token — long lived (7 days), stored hashed in DB
 async function createRefreshToken(userId) {
   const token = crypto.randomBytes(40).toString('hex');
@@ -59,7 +67,7 @@ router.post('/register', async (req, res) => {
       );
       const user = result.rows[0];
       await query('INSERT INTO player_stats (user_id) VALUES ($1)', [user.id]);
-      return res.status(201).json({ user, token: makeAccessToken(user), refreshToken: null });
+      return res.status(201).json({ user, token: makeGuestAccessToken(user), refreshToken: null });
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'Server error' });

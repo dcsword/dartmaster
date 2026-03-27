@@ -89,4 +89,8 @@ app.use((err, req, res, next) => {
 });
 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => console.log(`DartMaster backend running on port ${PORT}`));
+const HOST = process.env.HOST || '127.0.0.1';
+
+app.listen(PORT, HOST, () => {
+  console.log(`DartMaster backend running on http://${HOST}:${PORT}`);
+});

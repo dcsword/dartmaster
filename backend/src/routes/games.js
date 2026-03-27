@@ -1,9 +1,133 @@
 import express from 'express';
 import { query, getClient } from '../db/pool.js';
-import { authMiddleware, optionalAuth } from '../middleware/auth.js';
+import { optionalAuth } from '../middleware/auth.js';
 import { processTurn, getCheckout, checkMatchProgress } from '../logic/gameLogic.js';
 
 const router = express.Router();
+
+function createClientError(message, status = 400) {
+  const err = new Error(message);
+  err.status = status;
+  err.expose = true;
+  return err;
+}
+
+function sendClientError(res, err, fallbackMessage) {
+  console.error(err);
+  const status = err.status || 400;
+  const message = err.expose ? err.message : fallbackMessage;
+  res.status(status).json({ error: message });
+}
+
+async function isGameParticipant(client, gameId, userId) {
+  const result = await client.query(
+    `SELECT 1
+     FROM games g
+     WHERE g.id = $1
+       AND (
+         EXISTS (
+           SELECT 1 FROM game_players gp
+           WHERE gp.game_id = g.id AND gp.user_id = $2
+         )
+         OR EXISTS (
+           SELECT 1
+           FROM teams t
+           JOIN team_players tp ON tp.team_id = t.id
+           WHERE t.game_id = g.id AND tp.user_id = $2
+         )
+       )`,
+    [gameId, userId]
+  );
+  return result.rows.length > 0;
+}
+
+async function requireActiveGameAccess(client, gameId, userId) {
+  if (!userId) throw createClientError('Sign in or join as a guest to access this live game', 401);
+  const hasAccess = await isGameParticipant(client, gameId, userId);
+  if (!hasAccess) throw createClientError('You do not have access to this live game', 403);
+}
+
+async function getOrderedPlayerIds(client, gameId) {
+  const result = await client.query(
+    `SELECT user_id FROM game_players WHERE game_id = $1 ORDER BY "order"`,
+    [gameId]
+  );
+  return result.rows.map(row => row.user_id);
+}
+
+async function getOrderedTeamIds(client, gameId) {
+  const result = await client.query(
+    `SELECT id FROM teams WHERE game_id = $1 ORDER BY "order"`,
+    [gameId]
+  );
+  return result.rows.map(row => row.id);
+}
+
+function getNextOrderedId(ids, currentId) {
+  if (ids.length === 0) return null;
+  const currentIndex = ids.indexOf(currentId);
+  if (currentIndex < 0) return ids[0];
+  return ids[(currentIndex + 1) % ids.length];
+}
+
+async function advanceTurnOrder(client, game, currentLeg) {
+  if (game.mode === 'singles') {
+    const playerIds = await getOrderedPlayerIds(client, game.id);
+    const nextThrowerId = getNextOrderedId(playerIds, currentLeg.current_thrower_id);
+    await client.query(
+      `UPDATE legs SET current_thrower_id = $1 WHERE id = $2`,
+      [nextThrowerId, currentLeg.id]
+    );
+    return;
+  }
+
+  const teamIds = await getOrderedTeamIds(client, game.id);
+  const nextTeamId = getNextOrderedId(teamIds, currentLeg.current_team_id);
+  await client.query(
+    `UPDATE legs SET current_team_id = $1 WHERE id = $2`,
+    [nextTeamId, currentLeg.id]
+  );
+}
+
+async function resolveTurnActor(client, game, currentLeg, reqUser, body) {
+  if (!reqUser?.id) {
+    throw createClientError('Sign in or join as a guest to submit turns', 401);
+  }
+
+  if (game.mode === 'singles') {
+    const effectivePlayerId = body.playerId || reqUser.id;
+    if (effectivePlayerId !== reqUser.id) {
+      throw createClientError('You can only submit darts for yourself', 403);
+    }
+
+    const isParticipant = await isGameParticipant(client, game.id, reqUser.id);
+    if (!isParticipant) {
+      throw createClientError('You are not part of this game', 403);
+    }
+
+    return { playerId: effectivePlayerId, teamId: null };
+  }
+
+  const membership = await client.query(
+    `SELECT t.id
+     FROM teams t
+     JOIN team_players tp ON tp.team_id = t.id
+     WHERE t.game_id = $1 AND tp.user_id = $2
+     LIMIT 1`,
+    [game.id, reqUser.id]
+  );
+
+  if (!membership.rows.length) {
+    throw createClientError('You are not part of this game', 403);
+  }
+
+  const effectiveTeamId = membership.rows[0].id;
+  if (body.teamId && body.teamId !== effectiveTeamId) {
+    throw createClientError('You can only submit darts for your own team', 403);
+  }
+
+  return { playerId: reqUser.id, teamId: effectiveTeamId };
+}
 
 router.post('/', optionalAuth, async (req, res) => {
   const { mode = 'singles', ruleset = 'double_out', format = 'best_of', legsPerSet = 1, setsPerMatch = 1, players, teams } = req.body;
@@ -63,8 +187,7 @@ router.post('/', optionalAuth, async (req, res) => {
     res.status(201).json(fullGame);
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error(err);
-    res.status(400).json({ error: err.message || 'Could not create game' });
+    sendClientError(res, err, 'Could not create game');
   } finally {
     client.release();
   }
@@ -101,23 +224,32 @@ router.get('/:id/detail', optionalAuth, async (req, res) => {
 
 router.get('/:id', optionalAuth, async (req, res) => {
   try {
+    const gameResult = await query('SELECT id, status FROM games WHERE id = $1', [req.params.id]);
+    if (!gameResult.rows.length) return res.status(404).json({ error: 'Game not found' });
+
+    const gameMeta = gameResult.rows[0];
+    if (gameMeta.status === 'active') {
+      const client = await getClient();
+      try {
+        await requireActiveGameAccess(client, req.params.id, req.user?.id);
+      } finally {
+        client.release();
+      }
+    }
+
     const game = await getGameState(req.params.id);
     if (!game) return res.status(404).json({ error: 'Game not found' });
     res.json(game);
   } catch (err) {
+    if (err.expose) return res.status(err.status).json({ error: err.message });
     res.status(500).json({ error: 'Server error' });
   }
 });
 
 router.post('/:id/turn', optionalAuth, async (req, res) => {
-  const { playerId, teamId, darts } = req.body;
+  const { darts } = req.body;
   if (!darts || !Array.isArray(darts) || darts.length === 0 || darts.length > 3)
     return res.status(400).json({ error: 'darts must be an array of 1–3 values' });
-
-  // If authenticated, verify the user is submitting for themselves (#7 + #10)
-  // Guest players (no token) are still allowed — they're identified by playerId only
-  if (req.user && playerId && req.user.id !== playerId)
-    return res.status(403).json({ error: 'You can only submit darts for yourself' });
 
   const client = await getClient();
   try {
@@ -134,14 +266,16 @@ router.post('/:id/turn', optionalAuth, async (req, res) => {
     if (!legResult.rows.length) throw new Error('Active leg not found');
     const currentLeg = legResult.rows[0];
 
+    const { playerId, teamId } = await resolveTurnActor(client, game, currentLeg, req.user, req.body);
+
     // ── Server-side turn order enforcement (#22) ─────────────────────────────
     if (game.mode === 'singles' && currentLeg.current_thrower_id) {
       if (playerId && playerId !== currentLeg.current_thrower_id)
-        throw new Error('Not your turn');
+        throw createClientError('Not your turn');
     }
     if (game.mode === 'teams' && currentLeg.current_team_id) {
       if (teamId && teamId !== currentLeg.current_team_id)
-        throw new Error('Not your team\'s turn');
+        throw createClientError('Not your team\'s turn');
     }
 
     let scoreBefore;
@@ -255,8 +389,8 @@ router.post('/:id/turn', optionalAuth, async (req, res) => {
       } else {
         let nextSet = game.current_set;
         let nextLeg = game.current_leg + 1;
-        if (setWon) { nextSet = game.current_set + 1; nextLeg = 1; }
-        const resetScore = game.starting_score || 501;
+      if (setWon) { nextSet = game.current_set + 1; nextLeg = 1; }
+      const resetScore = game.starting_score || 501;
         if (game.mode === 'singles') {
           await client.query('UPDATE game_players SET score = $1 WHERE game_id = $2', [resetScore, game.id]);
         } else {
@@ -289,6 +423,8 @@ router.post('/:id/turn', optionalAuth, async (req, res) => {
           );
         }
       }
+    } else {
+      await advanceTurnOrder(client, game, currentLeg);
     }
 
     const scoreThisTurn = scoreBefore - scoreAfter;
@@ -309,8 +445,7 @@ router.post('/:id/turn', optionalAuth, async (req, res) => {
     res.json({ turnResult, scoreAfter, checkout, legWon, setWon, matchWon, gameStatus: matchWon ? 'finished' : 'active' });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error(err);
-    res.status(400).json({ error: err.message });
+    sendClientError(res, err, 'Could not process turn');
   } finally {
     client.release();
   }
@@ -322,6 +457,9 @@ router.get('/', optionalAuth, async (req, res) => {
 
   // Accept comma-separated list of user IDs to filter by (supports guest IDs from localStorage)
   const userIds = req.query.userIds ? req.query.userIds.split(',').filter(Boolean) : [];
+  if (userIds.length > 50) {
+    return res.status(400).json({ error: 'Too many user IDs' });
+  }
 
   try {
     let result;
