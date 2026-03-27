@@ -25,7 +25,9 @@ function ProtectedRoute({ children, allowGuests = false }) {
     try {
       const guestIds = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
       if (guestIds.length > 0) return children;
-    } catch {}
+    } catch (err) {
+      console.warn('Could not read guest history:', err.message);
+    }
   }
 
   return <Navigate to="/login" replace />;

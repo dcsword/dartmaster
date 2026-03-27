@@ -41,7 +41,10 @@ function H2HSection({ myId }) {
         try {
           const r = await api.searchPlayers(val.trim());
           setResults(r.filter(p => p.id !== myId));
-        } catch {}
+        } catch (err) {
+          console.warn('Player search failed:', err.message);
+          setResults([]);
+        }
       }, 300);
     } else {
       setResults([]);
@@ -56,7 +59,10 @@ function H2HSection({ myId }) {
     try {
       const data = await api.getH2H(myId, player.id);
       setH2h(data);
-    } catch {}
+    } catch (err) {
+      console.warn('Head-to-head lookup failed:', err.message);
+      setH2h(null);
+    }
     finally { setLoading(false); }
   }
 
@@ -154,7 +160,10 @@ export default function Stats() {
     try {
       const ids = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
       return ids[0] || null;
-    } catch { return null; }
+    } catch (err) {
+      console.warn('Could not read guest stats identity:', err.message);
+      return null;
+    }
   })();
 
   useEffect(() => {
@@ -162,7 +171,10 @@ export default function Stats() {
     setLoading(true);
     api.getStats(userId, range)
       .then(setStats)
-      .catch(() => setStats(null))
+      .catch(err => {
+        console.warn('Stats lookup failed:', err.message);
+        setStats(null);
+      })
       .finally(() => setLoading(false));
   }, [userId, range]);
 

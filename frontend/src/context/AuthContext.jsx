@@ -23,7 +23,9 @@ if (stored) {
   try {
     const u = JSON.parse(stored);
     if (u?.theme_color) applyTheme(u.theme_color);
-  } catch {}
+  } catch (err) {
+    console.warn('Could not restore saved theme:', err.message);
+  }
 }
 
 export function AuthProvider({ children }) {
@@ -51,7 +53,9 @@ export function AuthProvider({ children }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refreshToken }),
-      }).catch(() => {});
+      }).catch(err => {
+        console.warn('Logout request failed:', err.message);
+      });
     }
     localStorage.removeItem('dm_token');
     localStorage.removeItem('dm_refresh_token');
@@ -80,7 +84,8 @@ export function AuthProvider({ children }) {
         if (!res.ok) throw new Error(data.error);
         localStorage.setItem('dm_token', data.token);
         return data.token;
-      } catch {
+      } catch (err) {
+        console.warn('Access token refresh failed:', err.message);
         // Refresh failed — log out
         logout();
         return null;

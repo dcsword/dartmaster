@@ -15,9 +15,22 @@ export default function History() {
     if (user?.id) {
       ids.push(user.id);
     } else {
-      try { const g = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]'); ids.push(...g); } catch {}
+      try {
+        const g = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
+        ids.push(...g);
+      } catch (err) {
+        console.warn('Could not read guest history ids:', err.message);
+      }
     }
-    api.getHistory(30, ids).then(g => { setGames(g); setLoading(false); }).catch(() => setLoading(false));
+    api.getHistory(30, ids)
+      .then(g => {
+        setGames(g);
+        setLoading(false);
+      })
+      .catch(err => {
+        console.warn('History lookup failed:', err.message);
+        setLoading(false);
+      });
   }, [user]);
 
   function formatDate(dt) {
