@@ -521,9 +521,19 @@ export default function Setup() {
       });
       const guestId = r.user.id;
       const stored = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
-      if (!stored.includes(guestId)) { stored.push(guestId); localStorage.setItem('dm_guest_ids', JSON.stringify(stored)); }
+      if (!stored.includes(guestId)) {
+        stored.push(guestId);
+        // Cap at 20 most recent guest IDs (#28 — prevent unbounded growth)
+        const capped = stored.slice(-20);
+        localStorage.setItem('dm_guest_ids', JSON.stringify(capped));
+      }
       const nameMap = JSON.parse(localStorage.getItem('dm_guest_map') || '{}');
       nameMap[p.name.trim().toLowerCase()] = guestId;
+      // Cap map to 20 entries — remove oldest if over limit
+      const mapKeys = Object.keys(nameMap);
+      if (mapKeys.length > 20) {
+        mapKeys.slice(0, mapKeys.length - 20).forEach(k => delete nameMap[k]);
+      }
       localStorage.setItem('dm_guest_map', JSON.stringify(nameMap));
       return guestId;
     } catch { return null; }

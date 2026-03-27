@@ -40,7 +40,9 @@ export default function JoinRoom() {
       const stored = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
       if (room.joiningUserId && !stored.includes(room.joiningUserId)) {
         stored.push(room.joiningUserId);
-        localStorage.setItem('dm_guest_ids', JSON.stringify(stored));
+        // Cap at 20 most recent IDs (#28 — prevent unbounded growth)
+        const capped = stored.slice(-20);
+        localStorage.setItem('dm_guest_ids', JSON.stringify(capped));
       }
 
       setJoined(room);
