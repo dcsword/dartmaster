@@ -93,6 +93,7 @@ npm run dev
 3. Add a PostgreSQL plugin
 4. Set environment variables: `DATABASE_URL` (auto-filled by Railway), `JWT_SECRET`, `FRONTEND_URL`
 5. Run the schema: connect to DB and paste `backend/src/db/schema.sql`
+6. Run `backend/src/db/all_migrations.sql` against your PostgreSQL database after the initial schema (`schema.sql`).
 
 ### Frontend → Vercel
 
