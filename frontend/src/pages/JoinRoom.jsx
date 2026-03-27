@@ -80,7 +80,11 @@ export default function JoinRoom() {
 
   async function stopScanner() {
     if (scannerInstance.current) {
-      try { await scannerInstance.current.stop(); } catch {}
+      try {
+        await scannerInstance.current.stop();
+      } catch (err) {
+        console.warn('QR scanner stop failed:', err.message);
+      }
       scannerInstance.current = null;
     }
     setScanning(false);

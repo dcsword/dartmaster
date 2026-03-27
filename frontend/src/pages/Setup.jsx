@@ -319,14 +319,19 @@ function RoomPanel({ room, onClose, players, setPlayers }) {
 
   const joinUrl = `${window.location.origin}/join/${room.code}`;
 
-  useState(() => {
+  useEffect(() => {
     QRCode.toDataURL(joinUrl, {
       width: 200,
       margin: 2,
       color: { dark: '#f0ede8', light: '#14141c' },
     }).then(setQrDataUrl).catch(console.error);
     pollRef.current = setInterval(async () => {
-      try { const updated = await api.getRoom(room.code); setLiveRoom(updated); } catch {}
+      try {
+        const updated = await api.getRoom(room.code);
+        setLiveRoom(updated);
+      } catch (err) {
+        console.warn('Room poll failed:', err.message);
+      }
     }, 3000);
     const tick = () => {
       const diff = new Date(room.expires_at) - new Date();
@@ -365,9 +370,9 @@ function RoomPanel({ room, onClose, players, setPlayers }) {
           <p style={{ color: timeLeft === 'Expired' ? 'var(--danger)' : 'var(--text)', fontSize: '18px', fontWeight: 600, fontFamily: 'Barlow Condensed' }}>{timeLeft}</p>
         </div>
       </div>
-      {qrUrl && (
+      {qrDataUrl && (
         <div style={{ textAlign: 'center', marginBottom: '16px' }}>
-          <img src={qrUrl} alt="Room QR" style={{ width: '160px', height: '160px', borderRadius: 'var(--radius-sm)' }} />
+          <img src={qrDataUrl} alt="Room QR" style={{ width: '160px', height: '160px', borderRadius: 'var(--radius-sm)' }} />
           <p style={{ color: 'var(--muted)', fontSize: '11px', marginTop: '8px' }}>Friends scan this or type the code above</p>
         </div>
       )}
@@ -510,7 +515,14 @@ export default function Setup() {
   }
 
   async function handleCloseRoom() {
-    if (room) { try { await api.closeRoom(room.code); } catch {} setRoom(null); }
+    if (room) {
+      try {
+        await api.closeRoom(room.code);
+      } catch (err) {
+        console.warn('Room close failed:', err.message);
+      }
+      setRoom(null);
+    }
   }
 
   async function resolvePlayerId(p) {
@@ -524,7 +536,10 @@ export default function Setup() {
       GuestSessionStore.saveGuestSession(guestId, r.token);
       GuestSessionStore.rememberGuestName(p.name, guestId);
       return guestId;
-    } catch { return null; }
+    } catch (err) {
+      console.warn('Guest registration failed:', err.message);
+      return null;
+    }
   }
 
   async function handleStart() {
@@ -536,7 +551,13 @@ export default function Setup() {
         const ids = await Promise.all(fp.map(resolvePlayerId));
         const valid = ids.filter(Boolean);
         if (!valid.length) throw new Error('Could not create player records');
-        if (room) { try { await api.closeRoom(room.code); } catch {} }
+        if (room) {
+          try {
+            await api.closeRoom(room.code);
+          } catch (err) {
+            console.warn('Room close after singles start failed:', err.message);
+          }
+        }
         const game = await api.createGame({ mode: 'singles', ruleset, format, legsPerSet, setsPerMatch, players: valid });
         GameAccess.rememberGameParticipants(game.id, valid);
         navigate(`/game/${game.id}`);
@@ -549,7 +570,13 @@ export default function Setup() {
           const pIds = await Promise.all(fp.map(resolvePlayerId));
           return { name: t.name.trim(), players: pIds.filter(Boolean) };
         }));
-        if (room) { try { await api.closeRoom(room.code); } catch {} }
+        if (room) {
+          try {
+            await api.closeRoom(room.code);
+          } catch (err) {
+            console.warn('Room close after teams start failed:', err.message);
+          }
+        }
         const game = await api.createGame({ mode: 'teams', ruleset, format, legsPerSet, setsPerMatch, teams: teamData });
         GameAccess.rememberGameParticipants(
           game.id,

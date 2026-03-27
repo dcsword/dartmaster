@@ -8,8 +8,16 @@ export default function Win() {
   const location = useLocation();
   const { winnerName, teamName, result } = location.state || {};
   const [game, setGame] = useState(null);
+  const [loadError, setLoadError] = useState('');
 
-  useEffect(() => { api.getGame(id).then(setGame).catch(() => {}); }, [id]);
+  useEffect(() => {
+    api.getGame(id)
+      .then(setGame)
+      .catch(err => {
+        console.warn('Could not load finished game:', err.message);
+        setLoadError('Could not load match details');
+      });
+  }, [id]);
 
   const displayName = teamName || winnerName || 'Winner';
   const checkoutDart = result?.turnResult?.checkoutDart;
@@ -57,6 +65,9 @@ export default function Win() {
       </div>
 
       {/* Score cards */}
+      {loadError && (
+        <p style={{ color: 'var(--muted)', fontSize: '13px' }}>{loadError}</p>
+      )}
       {game && (
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {multiSet && (
