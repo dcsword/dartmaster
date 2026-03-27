@@ -19,6 +19,22 @@ async function cleanExpiredRooms() {
   await query(`DELETE FROM rooms WHERE expires_at < NOW()`);
 }
 
+async function getRoomByCode(code) {
+  const result = await query(
+    `SELECT * FROM rooms WHERE code = $1 AND expires_at > NOW()`,
+    [code.toUpperCase().trim()]
+  );
+  return result.rows[0] || null;
+}
+
+async function isRoomMember(roomId, userId) {
+  const result = await query(
+    `SELECT 1 FROM room_members WHERE room_id = $1 AND user_id = $2`,
+    [roomId, userId]
+  );
+  return result.rows.length > 0;
+}
+
 // ── POST /api/rooms — create a room ─────────────────────────────────────────
 router.post('/', authMiddleware, async (req, res) => {
   await cleanExpiredRooms();
@@ -82,16 +98,10 @@ router.post('/join', authMiddleware, async (req, res) => {
   const { code } = req.body;
   if (!code) return res.status(400).json({ error: 'Code is required' });
 
-  const roomResult = await query(
-    `SELECT * FROM rooms WHERE code = $1 AND expires_at > NOW()`,
-    [code.toUpperCase().trim()]
-  );
-
-  if (!roomResult.rows.length) {
+  const room = await getRoomByCode(code);
+  if (!room) {
     return res.status(404).json({ error: 'Room not found or expired' });
   }
-
-  const room = roomResult.rows[0];
 
   // Add member if not already in
   await query(
@@ -105,16 +115,16 @@ router.post('/join', authMiddleware, async (req, res) => {
 
 // ── GET /api/rooms/:code — get room members (host polls this) ────────────────
 router.get('/:code', authMiddleware, async (req, res) => {
-  const roomResult = await query(
-    `SELECT * FROM rooms WHERE code = $1 AND expires_at > NOW()`,
-    [req.params.code.toUpperCase()]
-  );
-
-  if (!roomResult.rows.length) {
+  const room = await getRoomByCode(req.params.code);
+  if (!room) {
     return res.status(404).json({ error: 'Room not found or expired' });
   }
 
-  const room = roomResult.rows[0];
+  const canAccess = room.host_id === req.user.id || await isRoomMember(room.id, req.user.id);
+  if (!canAccess) {
+    return res.status(403).json({ error: 'You do not have access to this room' });
+  }
+
   const members = await getRoomMembers(room.id);
   res.json({ ...room, members });
 });

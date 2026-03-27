@@ -8,9 +8,10 @@ function getToken() {
 let _refreshFn = null;
 export function setRefreshFn(fn) { _refreshFn = fn; }
 
-async function request(method, path, body, isRetry = false) {
+async function request(method, path, body, options = {}) {
+  const { isRetry = false, authToken = null } = options;
   const headers = { 'Content-Type': 'application/json' };
-  const token = getToken();
+  const token = authToken || getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(`${BASE}${path}`, {
@@ -22,9 +23,9 @@ async function request(method, path, body, isRetry = false) {
   const data = await res.json();
 
   // Auto-refresh on expired token (once)
-  if (!res.ok && data.code === 'TOKEN_EXPIRED' && !isRetry && _refreshFn) {
+  if (!res.ok && data.code === 'TOKEN_EXPIRED' && !isRetry && _refreshFn && !authToken) {
     const newToken = await _refreshFn();
-    if (newToken) return request(method, path, body, true); // retry once with new token
+    if (newToken) return request(method, path, body, { ...options, isRetry: true }); // retry once with new token
   }
 
   if (!res.ok) throw new Error(data.error || 'Request failed');
@@ -48,8 +49,8 @@ export const api = {
 
   // Games
   createGame:  (body)               => request('POST', '/games', body),
-  getGame:     (id)                 => request('GET', `/games/${id}`),
-  submitTurn:  (gameId, body)       => request('POST', `/games/${gameId}/turn`, body),
+  getGame:     (id, options)        => request('GET', `/games/${id}`, undefined, options),
+  submitTurn:  (gameId, body, options) => request('POST', `/games/${gameId}/turn`, body, options),
   getHistory:  (limit = 20, userIds = []) => {
     const params = new URLSearchParams({ limit });
     if (userIds.length > 0) params.set('userIds', userIds.join(','));

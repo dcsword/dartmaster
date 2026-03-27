@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api } from "../utils/api";
+import { GameAccess } from "../utils/gameAccess";
 
 const MULTIPLIERS = [
   { value: 1, short: "S" },
@@ -23,10 +24,50 @@ export default function Game() {
   const [checkout, setCheckout] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [legResult, setLegResult] = useState(null);
-  const [legStarterIdx, setLegStarterIdx] = useState(0);
+
+  function syncTurnState(nextGame) {
+    if (!nextGame) return;
+
+    if (nextGame.mode === "singles") {
+      const nextIndex = nextGame.players?.findIndex(
+        player => player.id === nextGame.currentLeg?.current_thrower_id
+      );
+      setCurrentPlayerIdx(nextIndex >= 0 ? nextIndex : 0);
+      return;
+    }
+
+    const nextTeamIndex = nextGame.teams?.findIndex(
+      team => team.id === nextGame.currentLeg?.current_team_id
+    );
+    const safeTeamIndex = nextTeamIndex >= 0 ? nextTeamIndex : 0;
+    const activeTeam = nextGame.teams?.[safeTeamIndex];
+    const turnsThisLeg = (nextGame.recentRounds || []).filter(
+      round => round.leg_id === nextGame.currentLeg?.id && round.team_id === activeTeam?.id
+    ).length;
+
+    setCurrentTeamIdx(safeTeamIndex);
+    setCurrentPlayerInTeam(
+      activeTeam?.players?.length ? turnsThisLeg % activeTeam.players.length : 0
+    );
+  }
+
+  function getViewOptions() {
+    const authToken = GameAccess.getViewToken(id);
+    return authToken ? { authToken } : undefined;
+  }
 
   useEffect(() => {
-    api.getGame(id).then(g => { setGame(g); setLoading(false); }).catch(() => setError("Game not found"));
+    api.getGame(id, getViewOptions())
+      .then(g => {
+        GameAccess.rememberGameFromState(g);
+        syncTurnState(g);
+        setGame(g);
+        setLoading(false);
+      })
+      .catch(() => {
+        setError("Game not found");
+        setLoading(false);
+      });
   }, [id]);
 
   useEffect(() => {
@@ -75,16 +116,6 @@ export default function Game() {
     setError("");
   }
 
-  function advanceTurn() {
-    if (game.mode === "singles") {
-      setCurrentPlayerIdx(prev => (prev + 1) % game.players.length);
-    } else {
-      const nextTeamIdx = (currentTeamIdx + 1) % game.teams.length;
-      if (nextTeamIdx === 0) setCurrentPlayerInTeam(prev => (prev + 1) % game.teams[0].players.length);
-      setCurrentTeamIdx(nextTeamIdx);
-    }
-  }
-
   function undoDart() { setDarts(prev => prev.slice(0, -1)); }
 
   async function submitTurn() {
@@ -93,23 +124,30 @@ export default function Game() {
     try {
       const player = getCurrentPlayer();
       const team = getCurrentTeam();
+      const turnOptions = (() => {
+        const authToken = GameAccess.getCurrentTurnToken(game, player);
+        return authToken ? { authToken } : undefined;
+      })();
       const result = await api.submitTurn(id, {
         darts: darts.map(d => (d.isBull || d.multiplier === 2 || d.multiplier === 3) ? d.value : d.score),
         playerId: player?.id, teamId: team?.id,
-      });
+      }, turnOptions);
       if (result.gameStatus === "finished") {
         navigate(`/win/${id}`, { state: { winnerName: player?.name, teamName: team?.name, result } });
         return;
       }
       if (result.legWon) {
-        const updated = await api.getGame(id);
+        const updated = await api.getGame(id, getViewOptions());
+        GameAccess.rememberGameFromState(updated);
+        syncTurnState(updated);
         setGame(updated); setDarts([]); setMultiplier(1);
         setLegResult({ setWon: result.setWon, winnerName: player?.name || team?.name, updatedGame: updated });
         return;
       }
-      const updated = await api.getGame(id);
+      const updated = await api.getGame(id, getViewOptions());
+      GameAccess.rememberGameFromState(updated);
+      syncTurnState(updated);
       setGame(updated); setDarts([]); setMultiplier(1);
-      advanceTurn();
     } catch (err) { setError(err.message); }
     finally { setSubmitting(false); }
   }
@@ -120,12 +158,18 @@ export default function Game() {
     setSubmitting(true); setDarts([]); setMultiplier(1);
     try {
       const player = getCurrentPlayer(); const team = getCurrentTeam();
+      const turnOptions = (() => {
+        const authToken = GameAccess.getCurrentTurnToken(game, player);
+        return authToken ? { authToken } : undefined;
+      })();
       await api.submitTurn(id, {
         darts: ["0"],
         playerId: player?.id, teamId: team?.id,
-      });
-      const updated = await api.getGame(id);
-      setGame(updated); advanceTurn();
+      }, turnOptions);
+      const updated = await api.getGame(id, getViewOptions());
+      GameAccess.rememberGameFromState(updated);
+      syncTurnState(updated);
+      setGame(updated);
     } catch (err) { setError(err.message); }
     finally { setSubmitting(false); }
   }
@@ -177,11 +221,7 @@ export default function Game() {
         </div>
         <button className="btn-primary" style={{ maxWidth: "360px", width: "100%", fontFamily: "Barlow Condensed", fontSize: "18px", fontWeight: 700 }}
           onClick={() => {
-            const total = game.mode === "singles" ? game.players.length : game.teams.length;
-            const next = (legStarterIdx + 1) % total;
-            setLegStarterIdx(next);
-            if (game.mode === "singles") setCurrentPlayerIdx(next);
-            else { setCurrentTeamIdx(next); setCurrentPlayerInTeam(0); }
+            syncTurnState(g);
             setLegResult(null);
           }}>
           {legResult.setWon ? `START SET ${g.current_set} →` : `START LEG ${g.current_leg} →`}

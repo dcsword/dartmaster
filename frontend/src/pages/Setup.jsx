@@ -2,6 +2,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import QRCode from 'qrcode';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { api } from '../utils/api';
+import { GameAccess } from '../utils/gameAccess';
+import { GuestSessionStore } from '../utils/guestSessions';
 import { useAuth } from '../context/AuthContext';
 
 const RULESETS = [
@@ -517,24 +519,10 @@ export default function Setup() {
       const r = await api.register({
         name: p.name.trim(),
         email: `guest_${Date.now()}_${Math.random()}@guest.local`,
-        password: 'guest',
       });
       const guestId = r.user.id;
-      const stored = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
-      if (!stored.includes(guestId)) {
-        stored.push(guestId);
-        // Cap at 20 most recent guest IDs (#28 — prevent unbounded growth)
-        const capped = stored.slice(-20);
-        localStorage.setItem('dm_guest_ids', JSON.stringify(capped));
-      }
-      const nameMap = JSON.parse(localStorage.getItem('dm_guest_map') || '{}');
-      nameMap[p.name.trim().toLowerCase()] = guestId;
-      // Cap map to 20 entries — remove oldest if over limit
-      const mapKeys = Object.keys(nameMap);
-      if (mapKeys.length > 20) {
-        mapKeys.slice(0, mapKeys.length - 20).forEach(k => delete nameMap[k]);
-      }
-      localStorage.setItem('dm_guest_map', JSON.stringify(nameMap));
+      GuestSessionStore.saveGuestSession(guestId, r.token);
+      GuestSessionStore.rememberGuestName(p.name, guestId);
       return guestId;
     } catch { return null; }
   }
@@ -550,6 +538,7 @@ export default function Setup() {
         if (!valid.length) throw new Error('Could not create player records');
         if (room) { try { await api.closeRoom(room.code); } catch {} }
         const game = await api.createGame({ mode: 'singles', ruleset, format, legsPerSet, setsPerMatch, players: valid });
+        GameAccess.rememberGameParticipants(game.id, valid);
         navigate(`/game/${game.id}`);
       } else {
         const ft = teams.filter(t => t.name.trim() && t.players.some(p => p.name.trim()));
@@ -562,6 +551,10 @@ export default function Setup() {
         }));
         if (room) { try { await api.closeRoom(room.code); } catch {} }
         const game = await api.createGame({ mode: 'teams', ruleset, format, legsPerSet, setsPerMatch, teams: teamData });
+        GameAccess.rememberGameParticipants(
+          game.id,
+          teamData.flatMap(team => team.players)
+        );
         navigate(`/game/${game.id}`);
       }
     } catch (err) { setError(err.message); }
