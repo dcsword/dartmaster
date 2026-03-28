@@ -1,0 +1,97 @@
+.win-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  text-align: center;
+  gap: 24px;
+  background: var(--bg);
+}
+
+.win-trophy {
+  font-size: 72px;
+  animation: win-pop 0.5s cubic-bezier(0.175,0.885,0.32,1.275);
+}
+
+.win-winner-label {
+  margin-bottom: 8px;
+}
+
+.win-title {
+  font-size: 60px;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 0.9;
+}
+
+.win-subtitle {
+  color: var(--muted);
+  margin-top: 8px;
+  font-size: 14px;
+  letter-spacing: 0.1em;
+}
+
+.win-load-error {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.win-cards {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.win-card {
+  min-width: 90px;
+  text-align: center;
+}
+
+.win-card-label {
+  margin-bottom: 6px;
+}
+
+.win-card-value {
+  font-family: 'Barlow Condensed';
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+
+.win-card-value-success {
+  color: var(--green);
+}
+
+.win-card-format {
+  font-family: 'Barlow Condensed';
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.win-actions {
+  width: 100%;
+  max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.win-primary {
+  font-size: 20px;
+  padding: 16px;
+  font-family: 'Barlow Condensed';
+  letter-spacing: 0.05em;
+  font-weight: 800;
+}
+
+@keyframes win-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  70% { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
