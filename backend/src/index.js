@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -38,6 +39,7 @@ app.use(cors({
 }));
 
 // ── Body size limit (#16) ────────────────────────────────────────────────────
+app.use(cookieParser());
 app.use(express.json({ limit: '50kb' }));
 
 // ── Rate limiting (#1) ───────────────────────────────────────────────────────

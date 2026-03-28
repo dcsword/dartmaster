@@ -1,6 +1,12 @@
 {
-  "dependencies": {
-    "html5-qrcode": "^2.3.8",
-    "qrcode.react": "^4.2.0"
+  "name": "dartmaster",
+  "private": true,
+  "scripts": {
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "build:frontend": "npm --prefix frontend run build",
+    "audit:frontend": "npm --prefix frontend audit",
+    "audit:backend": "npm --prefix backend audit",
+    "migrate:backend": "npm --prefix backend run db:migrate"
   }
 }

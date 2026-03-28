@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { setRefreshFn } from '../utils/api';
+import { api, setAccessToken, setRefreshFn } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -43,9 +43,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => readStoredJson('dm_user', 'null'));
   const refreshInFlight = useRef(null);
 
-  function login(userData, token, refreshToken) {
-    localStorage.setItem('dm_token', token);
-    if (refreshToken) localStorage.setItem('dm_refresh_token', refreshToken);
+  function login(userData, token) {
+    setAccessToken(token);
     localStorage.setItem('dm_user', JSON.stringify(userData));
     setUser(userData);
     if (userData?.theme_color) applyTheme(userData.theme_color);
@@ -53,19 +52,10 @@ export function AuthProvider({ children }) {
   }
 
   function logout() {
-    // Tell backend to revoke the refresh token
-    const refreshToken = localStorage.getItem('dm_refresh_token');
-    if (refreshToken) {
-      fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/logout`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      }).catch(err => {
-        console.warn('Logout request failed:', err.message);
-      });
-    }
-    localStorage.removeItem('dm_token');
-    localStorage.removeItem('dm_refresh_token');
+    api.logout().catch(err => {
+      console.warn('Logout request failed:', err.message);
+    });
+    setAccessToken(null);
     localStorage.removeItem('dm_user');
     setUser(null);
     applyTheme('#e8293c');
@@ -74,22 +64,13 @@ export function AuthProvider({ children }) {
   // Called by api.js when it gets a TOKEN_EXPIRED response
   // Returns new access token or null if refresh fails
   async function refreshAccessToken() {
-    const refreshToken = localStorage.getItem('dm_refresh_token');
-    if (!refreshToken) return null;
-
     // Deduplicate concurrent refresh calls
     if (refreshInFlight.current) return refreshInFlight.current;
 
     refreshInFlight.current = (async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/refresh`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        });
-        const refreshPayload = await response.json();
-        if (!response.ok) throw new Error(refreshPayload.error);
-        localStorage.setItem('dm_token', refreshPayload.token);
+        const refreshPayload = await api.refresh();
+        setAccessToken(refreshPayload.token);
         return refreshPayload.token;
       } catch (err) {
         console.warn('Access token refresh failed:', err.message);
@@ -108,6 +89,17 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     setRefreshFn(refreshAccessToken);
   }, []);
+
+  useEffect(() => {
+    if (!user) {
+      setAccessToken(null);
+      return;
+    }
+
+    refreshAccessToken().catch(err => {
+      console.warn('Initial session refresh failed:', err.message);
+    });
+  }, [user]);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, applyTheme, refreshAccessToken }}>
