@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useRef } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { setRefreshFn } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -17,12 +18,20 @@ export function applyTheme(color) {
   root.style.setProperty('--accent-glow', theme.glow);
 }
 
-// Apply on initial load from localStorage
-const stored = localStorage.getItem('dm_user');
-if (stored) {
+function readStoredJson(key, fallbackValue) {
   try {
-    const u = JSON.parse(stored);
-    if (u?.theme_color) applyTheme(u.theme_color);
+    return JSON.parse(localStorage.getItem(key) || fallbackValue);
+  } catch {
+    return JSON.parse(fallbackValue);
+  }
+}
+
+// Apply on initial load from localStorage
+const storedUser = localStorage.getItem('dm_user');
+if (storedUser) {
+  try {
+    const parsedUser = JSON.parse(storedUser);
+    if (parsedUser?.theme_color) applyTheme(parsedUser.theme_color);
   } catch (err) {
     console.warn('Could not restore saved theme:', err.message);
   }
@@ -31,9 +40,7 @@ if (stored) {
 export function AuthProvider({ children }) {
   // Wire the refresh function into api.js so it can auto-refresh tokens
   // We do this lazily to avoid circular imports
-  const [user, setUser] = useState(() => {
-    try { return JSON.parse(localStorage.getItem('dm_user') || 'null'); } catch { return null; }
-  });
+  const [user, setUser] = useState(() => readStoredJson('dm_user', 'null'));
   const refreshInFlight = useRef(null);
 
   function login(userData, token, refreshToken) {
@@ -75,15 +82,15 @@ export function AuthProvider({ children }) {
 
     refreshInFlight.current = (async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/refresh`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || '/api'}/auth/refresh`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ refreshToken }),
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error);
-        localStorage.setItem('dm_token', data.token);
-        return data.token;
+        const refreshPayload = await response.json();
+        if (!response.ok) throw new Error(refreshPayload.error);
+        localStorage.setItem('dm_token', refreshPayload.token);
+        return refreshPayload.token;
       } catch (err) {
         console.warn('Access token refresh failed:', err.message);
         // Refresh failed — log out
@@ -97,12 +104,10 @@ export function AuthProvider({ children }) {
     return refreshInFlight.current;
   }
 
-  // Register refresh function with api.js (lazy import avoids circular deps)
-  useState(() => {
-    import('../utils/api.js').then(({ setRefreshFn }) => {
-      setRefreshFn(refreshAccessToken);
-    });
-  });
+  // Register refresh function with api.js so requests can retry once on expiry.
+  useEffect(() => {
+    setRefreshFn(refreshAccessToken);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, applyTheme, refreshAccessToken }}>

@@ -10,7 +10,7 @@ import { sendWelcomeEmail } from '../services/email.js';
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-function validateUsername(username) {
+function getUsernameValidationError(username) {
   if (!username) return 'Username is required';
   if (username.length < 3) return 'Username must be at least 3 characters';
   if (username.length > 30) return 'Username must be 30 characters or less';
@@ -81,7 +81,7 @@ router.post('/register', async (req, res) => {
   if (password.length > 128)
     return res.status(400).json({ error: 'Password too long' });
 
-  const usernameError = validateUsername(username);
+  const usernameError = getUsernameValidationError(username);
   if (usernameError) return res.status(400).json({ error: usernameError });
 
   let parsedBirthday = null;
@@ -175,10 +175,10 @@ router.post('/google', async (req, res) => {
       [googleId]
     );
     if (result.rows.length > 0) {
-      const u = result.rows[0];
-      const accessToken = makeAccessToken(u);
-      const refreshToken = await createRefreshToken(u.id);
-      return res.json(tokenResponse(u, accessToken, refreshToken));
+      const existingGoogleUser = result.rows[0];
+      const accessToken = makeAccessToken(existingGoogleUser);
+      const refreshToken = await createRefreshToken(existingGoogleUser.id);
+      return res.json(tokenResponse(existingGoogleUser, accessToken, refreshToken));
     }
 
     // Email already registered — link Google to existing account
@@ -191,10 +191,14 @@ router.post('/google', async (req, res) => {
          FROM users WHERE email = $1`,
         [email.toLowerCase()]
       );
-      const lu = linked.rows[0];
-      const lat = makeAccessToken(lu);
-      const lrt = await createRefreshToken(lu.id);
-      return res.json({ ...tokenResponse(lu, lat, lrt), isNew: false, linked: true });
+      const linkedUser = linked.rows[0];
+      const linkedAccessToken = makeAccessToken(linkedUser);
+      const linkedRefreshToken = await createRefreshToken(linkedUser.id);
+      return res.json({
+        ...tokenResponse(linkedUser, linkedAccessToken, linkedRefreshToken),
+        isNew: false,
+        linked: true,
+      });
     }
 
     // New user — auto-generate unique username
@@ -217,9 +221,9 @@ router.post('/google', async (req, res) => {
     const user = newUser.rows[0];
     await query('INSERT INTO player_stats (user_id) VALUES ($1)', [user.id]);
     sendWelcomeEmail({ name: user.name, email: user.email });
-    const gat = makeAccessToken(user);
-    const grt = await createRefreshToken(user.id);
-    res.status(201).json({ ...tokenResponse(user, gat, grt), isNew: true });
+    const accessToken = makeAccessToken(user);
+    const refreshToken = await createRefreshToken(user.id);
+    res.status(201).json({ ...tokenResponse(user, accessToken, refreshToken), isNew: true });
   } catch (err) {
     console.error('Google auth error:', err);
     res.status(401).json({ error: 'Google sign-in failed — please try again' });

@@ -12,7 +12,7 @@ router.get('/search', authMiddleware, async (req, res) => {
   if (q.length > 30)
     return res.status(400).json({ error: 'Query too long' });
   // Sanitize ILIKE wildcards to prevent full-table abuse
-  const safe = q.replace(/[%_\\]/g, '\\$&');
+  const safeSearchTerm = q.replace(/[%_\\]/g, '\\$&');
   try {
     const result = await query(
       `SELECT id, name, username, avatar_color, theme_color FROM users
@@ -20,7 +20,7 @@ router.get('/search', authMiddleware, async (req, res) => {
        AND email NOT LIKE '%@guest.local'
        AND username IS NOT NULL
        LIMIT 10`,
-      [`%${safe}%`]
+      [`%${safeSearchTerm}%`]
     );
     res.json(result.rows);
   } catch (err) {
