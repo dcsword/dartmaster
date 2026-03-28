@@ -4,11 +4,23 @@ import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
-import { query } from '../db/pool.js';
+import { getClient, query } from '../db/pool.js';
 import { sendWelcomeEmail } from '../services/email.js';
 
 const router = express.Router();
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const REFRESH_COOKIE_NAME = 'dm_refresh_token';
+
+function cookieOptions() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  return {
+    httpOnly: true,
+    sameSite: isProduction ? 'none' : 'lax',
+    secure: isProduction,
+    path: '/api/auth',
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+  };
+}
 
 function getUsernameValidationError(username) {
   if (!username) return 'Username is required';
@@ -36,19 +48,38 @@ function makeGuestAccessToken(user) {
 }
 
 // Refresh token — long lived (7 days), stored hashed in DB
-async function createRefreshToken(userId) {
+async function createRefreshToken(userId, db = query) {
   const token = crypto.randomBytes(40).toString('hex');
   const hash = crypto.createHash('sha256').update(token).digest('hex');
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-  await query(
-    'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
-    [userId, hash, expiresAt]
-  );
+  if (typeof db === 'function') {
+    await db(
+      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+      [userId, hash, expiresAt]
+    );
+  } else {
+    await db.query(
+      'INSERT INTO refresh_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3)',
+      [userId, hash, expiresAt]
+    );
+  }
   return token; // return raw token to send to client
 }
 
-function tokenResponse(user, accessToken, refreshToken) {
-  return { user, token: accessToken, refreshToken };
+function tokenResponse(user, accessToken) {
+  return { user, token: accessToken };
+}
+
+function setRefreshCookie(res, refreshToken) {
+  res.cookie(REFRESH_COOKIE_NAME, refreshToken, cookieOptions());
+}
+
+function clearRefreshCookie(res) {
+  res.clearCookie(REFRESH_COOKIE_NAME, cookieOptions());
+}
+
+function readRefreshToken(req) {
+  return req.cookies?.[REFRESH_COOKIE_NAME] || req.body?.refreshToken || null;
 }
 
 // ── POST /api/auth/register ───────────────────────────────────────────────────
@@ -118,7 +149,8 @@ router.post('/register', async (req, res) => {
     sendWelcomeEmail({ name: user.name, email: user.email });
     const accessToken = makeAccessToken(user);
     const refreshToken = await createRefreshToken(user.id);
-    res.status(201).json(tokenResponse(user, accessToken, refreshToken));
+    setRefreshCookie(res, refreshToken);
+    res.status(201).json(tokenResponse(user, accessToken));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -148,7 +180,8 @@ router.post('/login', async (req, res) => {
     const { password_hash, ...safeUser } = user;
     const accessToken = makeAccessToken(safeUser);
     const refreshToken = await createRefreshToken(safeUser.id);
-    res.json(tokenResponse(safeUser, accessToken, refreshToken));
+    setRefreshCookie(res, refreshToken);
+    res.json(tokenResponse(safeUser, accessToken));
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
@@ -178,7 +211,8 @@ router.post('/google', async (req, res) => {
       const existingGoogleUser = result.rows[0];
       const accessToken = makeAccessToken(existingGoogleUser);
       const refreshToken = await createRefreshToken(existingGoogleUser.id);
-      return res.json(tokenResponse(existingGoogleUser, accessToken, refreshToken));
+      setRefreshCookie(res, refreshToken);
+      return res.json(tokenResponse(existingGoogleUser, accessToken));
     }
 
     // Email already registered — link Google to existing account
@@ -194,8 +228,9 @@ router.post('/google', async (req, res) => {
       const linkedUser = linked.rows[0];
       const linkedAccessToken = makeAccessToken(linkedUser);
       const linkedRefreshToken = await createRefreshToken(linkedUser.id);
+      setRefreshCookie(res, linkedRefreshToken);
       return res.json({
-        ...tokenResponse(linkedUser, linkedAccessToken, linkedRefreshToken),
+        ...tokenResponse(linkedUser, linkedAccessToken),
         isNew: false,
         linked: true,
       });
@@ -223,7 +258,8 @@ router.post('/google', async (req, res) => {
     sendWelcomeEmail({ name: user.name, email: user.email });
     const accessToken = makeAccessToken(user);
     const refreshToken = await createRefreshToken(user.id);
-    res.status(201).json({ ...tokenResponse(user, accessToken, refreshToken), isNew: true });
+    setRefreshCookie(res, refreshToken);
+    res.status(201).json({ ...tokenResponse(user, accessToken), isNew: true });
   } catch (err) {
     console.error('Google auth error:', err);
     res.status(401).json({ error: 'Google sign-in failed — please try again' });
@@ -276,53 +312,73 @@ router.delete('/account', authMiddleware, async (req, res) => {
   }
 });
 
-export default router;
-
 // ── POST /api/auth/refresh ────────────────────────────────────────────────────
 // Exchange a valid refresh token for a new access token
 router.post('/refresh', async (req, res) => {
-  const { refreshToken } = req.body;
+  const refreshToken = readRefreshToken(req);
   if (!refreshToken) return res.status(400).json({ error: 'Refresh token required' });
 
+  const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
+  const client = await getClient();
+
   try {
-    const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
-    const result = await query(
-      `SELECT rt.user_id, rt.expires_at, u.id, u.name, u.username, u.email,
+    await client.query('BEGIN');
+    const result = await client.query(
+      `SELECT rt.id AS refresh_token_id, rt.user_id, rt.expires_at, u.id, u.name, u.username, u.email,
               u.avatar_color, u.theme_color, u.first_name, u.last_name
        FROM refresh_tokens rt
        JOIN users u ON u.id = rt.user_id
        WHERE rt.token_hash = $1`,
-      [hash]
+      [refreshTokenHash]
     );
 
-    if (!result.rows.length)
+    if (!result.rows.length) {
+      await client.query('ROLLBACK');
+      clearRefreshCookie(res);
       return res.status(401).json({ error: 'Invalid refresh token' });
+    }
 
-    const row = result.rows[0];
-    if (new Date(row.expires_at) < new Date())
+    const user = result.rows[0];
+    if (new Date(user.expires_at) < new Date()) {
+      await client.query('DELETE FROM refresh_tokens WHERE id = $1', [user.refresh_token_id]);
+      await client.query('COMMIT');
+      clearRefreshCookie(res);
       return res.status(401).json({ error: 'Refresh token expired — please log in again' });
+    }
 
-    // Issue new access token
-    const accessToken = makeAccessToken(row);
-    res.json({ token: accessToken });
+    await client.query('DELETE FROM refresh_tokens WHERE id = $1', [user.refresh_token_id]);
+    const nextRefreshToken = await createRefreshToken(user.id, client);
+    await client.query('COMMIT');
+
+    setRefreshCookie(res, nextRefreshToken);
+    res.json({ token: makeAccessToken(user) });
   } catch (err) {
+    await client.query('ROLLBACK');
     console.error(err);
     res.status(500).json({ error: 'Server error' });
+  } finally {
+    client.release();
   }
 });
 
 // ── POST /api/auth/logout ─────────────────────────────────────────────────────
 // Revoke the refresh token — truly invalidates the session
 router.post('/logout', async (req, res) => {
-  const { refreshToken } = req.body;
-  if (!refreshToken) return res.status(200).json({ ok: true }); // already logged out
+  const refreshToken = readRefreshToken(req);
+  if (!refreshToken) {
+    clearRefreshCookie(res);
+    return res.status(200).json({ ok: true });
+  }
 
   try {
     const hash = crypto.createHash('sha256').update(refreshToken).digest('hex');
     await query('DELETE FROM refresh_tokens WHERE token_hash = $1', [hash]);
+    clearRefreshCookie(res);
     res.json({ ok: true });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+export default router;

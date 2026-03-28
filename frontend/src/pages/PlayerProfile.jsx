@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Layout from '../components/Layout';
-import { api } from '../utils/api';
+import { api, getAccessToken } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import ProfileHeader from '../components/profile/ProfileHeader';
 import ProfileEditForm from '../components/profile/ProfileEditForm';
@@ -66,7 +66,7 @@ export default function PlayerProfile() {
         const storedUser = JSON.parse(localStorage.getItem('dm_user') || '{}');
         const nextUser = { ...storedUser, ...updated };
         localStorage.setItem('dm_user', JSON.stringify(nextUser));
-        login(nextUser, localStorage.getItem('dm_token'));
+        login(nextUser, getAccessToken());
         if (updated.theme_color) applyTheme(updated.theme_color);
       }
 

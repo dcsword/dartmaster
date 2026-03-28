@@ -89,7 +89,7 @@ export default function Login() {
       const result = tab === 'login'
         ? await api.login({ login: form.login, password: form.password })
         : await api.register({ name: form.name, username: form.username, email: form.email, password: form.password });
-      login(result.user, result.token, result.refreshToken);
+      login(result.user, result.token);
       navigate('/');
     } catch (err) {
       setError(err.message);
@@ -100,7 +100,7 @@ export default function Login() {
     setGoogleLoading(true); setError('');
     try {
       const result = await api.googleLogin(idToken);
-      login(result.user, result.token, result.refreshToken);
+      login(result.user, result.token);
       navigate('/');
     } catch (err) {
       setError(err.message);

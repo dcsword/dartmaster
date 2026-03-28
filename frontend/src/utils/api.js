@@ -1,15 +1,18 @@
 const BASE = import.meta.env.VITE_API_URL || '/api';
+let accessToken = null;
 
 function getToken() {
-  return localStorage.getItem('dm_token');
+  return accessToken;
 }
 
 // Lazy ref to AuthContext's refreshAccessToken — set by AuthProvider
 let _refreshFn = null;
 export function setRefreshFn(fn) { _refreshFn = fn; }
+export function setAccessToken(token) { accessToken = token || null; }
+export function getAccessToken() { return accessToken; }
 
 async function request(method, path, body, options = {}) {
-  const { isRetry = false, authToken = null } = options;
+  const { isRetry = false, authToken = null, skipAuthRefresh = false } = options;
   const headers = { 'Content-Type': 'application/json' };
   const token = authToken || getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -17,13 +20,17 @@ async function request(method, path, body, options = {}) {
   const res = await fetch(`${BASE}${path}`, {
     method,
     headers,
+    credentials: 'include',
     body: body ? JSON.stringify(body) : undefined,
   });
 
   const data = await res.json();
 
   // Auto-refresh on expired token (once)
-  if (!res.ok && data.code === 'TOKEN_EXPIRED' && !isRetry && _refreshFn && !authToken) {
+  const shouldAttemptRefresh = !skipAuthRefresh && !isRetry && _refreshFn && !authToken && (
+    data.code === 'TOKEN_EXPIRED' || (res.status === 401 && !token)
+  );
+  if (!res.ok && shouldAttemptRefresh) {
     const newToken = await _refreshFn();
     if (newToken) return request(method, path, body, { ...options, isRetry: true }); // retry once with new token
   }
@@ -34,11 +41,11 @@ async function request(method, path, body, options = {}) {
 
 export const api = {
   // Auth
-  register:    (body)           => request('POST', '/auth/register', body),
-  login:       (body)           => request('POST', '/auth/login', body),
-  googleLogin: (idToken)        => request('POST', '/auth/google', { idToken }),
-  refresh:     (refreshToken)   => request('POST', '/auth/refresh', { refreshToken }),
-  logout:      (refreshToken)   => request('POST', '/auth/logout', { refreshToken }),
+  register:    (body)           => request('POST', '/auth/register', body, { skipAuthRefresh: true }),
+  login:       (body)           => request('POST', '/auth/login', body, { skipAuthRefresh: true }),
+  googleLogin: (idToken)        => request('POST', '/auth/google', { idToken }, { skipAuthRefresh: true }),
+  refresh:     ()               => request('POST', '/auth/refresh', undefined, { skipAuthRefresh: true }),
+  logout:      ()               => request('POST', '/auth/logout', undefined, { skipAuthRefresh: true }),
   deleteAccount: ()               => request('DELETE', '/auth/account'),
 
   // Players
