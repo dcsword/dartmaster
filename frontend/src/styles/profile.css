@@ -1,0 +1,366 @@
+.profile-section {
+  margin-bottom: 24px;
+}
+
+.profile-header-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.profile-avatar-large {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.profile-header-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.profile-title {
+  font-size: 36px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+}
+
+.profile-accent-copy {
+  font-size: 13px;
+  color: var(--accent);
+  margin-top: 2px;
+}
+
+.profile-muted-copy {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.profile-bio {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.profile-meta-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 5px;
+  flex-wrap: wrap;
+}
+
+.profile-muted-chip {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.profile-edit-button {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xs);
+  padding: 8px 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.profile-edit-button-active {
+  background: var(--accent-tint);
+  border-color: var(--accent-glow);
+  color: var(--accent);
+}
+
+.profile-edit-card {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-edit-title {
+  color: var(--accent);
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.profile-field-label {
+  margin-bottom: 4px;
+}
+
+.profile-username-wrap {
+  position: relative;
+}
+
+.profile-username-prefix {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.profile-counter {
+  font-size: 10px;
+  color: var(--muted);
+  margin-top: 3px;
+  text-align: right;
+}
+
+.profile-color-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.profile-color-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid transparent;
+  transition: border 0.15s;
+}
+
+.profile-color-swatch-active {
+  border-color: var(--text);
+}
+
+.profile-theme-section {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.profile-theme-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.profile-theme-option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.profile-theme-swatch {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  border: 3px solid transparent;
+  transition: border 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-theme-swatch-active {
+  border-color: var(--text);
+}
+
+.profile-theme-swatch-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #fff;
+  opacity: 0.9;
+}
+
+.profile-theme-label {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.profile-theme-label-active {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.profile-spacing-sm {
+  margin-bottom: 8px;
+}
+
+.profile-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.profile-stat-card {
+  text-align: center;
+}
+
+.profile-stat-label {
+  margin-bottom: 5px;
+}
+
+.profile-stat-value {
+  font-family: 'Barlow Condensed';
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.profile-section-label {
+  margin-bottom: 12px;
+}
+
+.profile-empty-copy {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.profile-games-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.profile-game-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.profile-game-result {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.profile-game-result-win {
+  font-size: 13px;
+  color: var(--green);
+  font-weight: 500;
+}
+
+.profile-game-result-loss {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.profile-game-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+}
+
+.profile-game-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.profile-delete-section {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  max-width: 480px;
+}
+
+.profile-delete-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.profile-delete-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+.profile-delete-copy {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.profile-delete-trigger {
+  background: rgba(255,77,77,0.08);
+  border: 1px solid rgba(255,77,77,0.25);
+  border-radius: var(--radius-xs);
+  padding: 8px 14px;
+  color: var(--danger);
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.profile-delete-card {
+  background: rgba(255,77,77,0.06);
+  border: 1px solid rgba(255,77,77,0.2);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-delete-warning {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--danger);
+}
+
+.profile-delete-body {
+  line-height: 1.5;
+  font-size: 13px;
+}
+
+.profile-delete-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.profile-delete-submit {
+  flex: 1;
+  background: var(--danger);
+  border: none;
+  border-radius: var(--radius-xs);
+  padding: 10px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profile-error {
+  color: var(--danger);
+  font-size: 13px;
+}
+
+.profile-mobile-signout {
+  text-align: center;
+  padding: 16px 0 8px;
+}
+
+.profile-mobile-signout button {
+  background: none;
+  border: none;
+  color: var(--muted2);
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+}
