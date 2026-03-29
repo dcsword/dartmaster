@@ -190,6 +190,7 @@ export function useSetupState(user) {
   }
 
   async function closeRoomByCode(roomCode, warningLabel) {
+    if (!roomCode) return;
     try {
       await api.closeRoom(roomCode);
     } catch (err) {
@@ -198,8 +199,9 @@ export function useSetupState(user) {
   }
 
   async function handleCloseRoom() {
-    if (!room) return;
-    await closeRoomByCode(room.code, 'Room close failed');
+    const roomCode = room?.code;
+    if (!roomCode) return;
+    await closeRoomByCode(roomCode, 'Room close failed');
     setRoom(null);
   }
 
