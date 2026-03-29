@@ -24,7 +24,15 @@ async function request(method, path, body, options = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const data = await res.json();
+  const text = await res.text();
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = { error: text };
+    }
+  }
 
   // Auto-refresh on expired token (once)
   const shouldAttemptRefresh = !skipAuthRefresh && !isRetry && _refreshFn && !authToken && (
@@ -35,7 +43,12 @@ async function request(method, path, body, options = {}) {
     if (newToken) return request(method, path, body, { ...options, isRetry: true }); // retry once with new token
   }
 
-  if (!res.ok) throw new Error(data.error || 'Request failed');
+  if (!res.ok) {
+    const error = new Error(data.error || 'Request failed');
+    error.status = res.status;
+    error.code = data.code || null;
+    throw error;
+  }
   return data;
 }
 
@@ -73,7 +86,7 @@ export const api = {
 
   // Rooms
   createRoom: ()     => request('POST', '/rooms'),
-  joinRoom:   (code) => request('POST', '/rooms/join', { code }),
+  joinRoom:   (code, options) => request('POST', '/rooms/join', { code }, options),
   getRoom:    (code) => request('GET', `/rooms/${code}`),
   closeRoom:  (code) => request('DELETE', `/rooms/${code}`),
 };

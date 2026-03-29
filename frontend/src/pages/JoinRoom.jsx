@@ -19,10 +19,12 @@ export default function JoinRoom() {
     <JoinRoomForm
       user={user}
       code={joinRoomState.code}
+      guestName={joinRoomState.guestName}
       loading={joinRoomState.loading}
       error={joinRoomState.error}
       scanning={joinRoomState.scanning}
       onCodeChange={joinRoomState.setCode}
+      onGuestNameChange={joinRoomState.setGuestName}
       onJoin={joinRoomState.handleJoin}
       onLogin={() => navigate('/login')}
       onStartScanner={joinRoomState.startScanner}

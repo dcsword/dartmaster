@@ -98,7 +98,7 @@ router.post('/register', async (req, res) => {
       );
       const user = result.rows[0];
       await query('INSERT INTO player_stats (user_id) VALUES ($1)', [user.id]);
-      return res.status(201).json({ user, token: makeGuestAccessToken(user), refreshToken: null });
+      return res.status(201).json(tokenResponse(user, makeGuestAccessToken(user)));
     } catch (err) {
       console.error(err);
       return res.status(500).json({ error: 'Server error' });
@@ -316,13 +316,18 @@ router.delete('/account', authMiddleware, async (req, res) => {
 // Exchange a valid refresh token for a new access token
 router.post('/refresh', async (req, res) => {
   const refreshToken = readRefreshToken(req);
-  if (!refreshToken) return res.status(400).json({ error: 'Refresh token required' });
+  if (!refreshToken) {
+    clearRefreshCookie(res);
+    return res.status(401).json({ error: 'Refresh token required', code: 'REFRESH_REQUIRED' });
+  }
 
   const refreshTokenHash = crypto.createHash('sha256').update(refreshToken).digest('hex');
   const client = await getClient();
+  let transactionOpen = false;
 
   try {
     await client.query('BEGIN');
+    transactionOpen = true;
     const result = await client.query(
       `SELECT rt.id AS refresh_token_id, rt.user_id, rt.expires_at, u.id, u.name, u.username, u.email,
               u.avatar_color, u.theme_color, u.first_name, u.last_name
@@ -334,26 +339,35 @@ router.post('/refresh', async (req, res) => {
 
     if (!result.rows.length) {
       await client.query('ROLLBACK');
+      transactionOpen = false;
       clearRefreshCookie(res);
-      return res.status(401).json({ error: 'Invalid refresh token' });
+      return res.status(401).json({ error: 'Invalid refresh token', code: 'INVALID_REFRESH_TOKEN' });
     }
 
     const user = result.rows[0];
     if (new Date(user.expires_at) < new Date()) {
       await client.query('DELETE FROM refresh_tokens WHERE id = $1', [user.refresh_token_id]);
       await client.query('COMMIT');
+      transactionOpen = false;
       clearRefreshCookie(res);
-      return res.status(401).json({ error: 'Refresh token expired — please log in again' });
+      return res.status(401).json({ error: 'Refresh token expired — please log in again', code: 'REFRESH_TOKEN_EXPIRED' });
     }
 
     await client.query('DELETE FROM refresh_tokens WHERE id = $1', [user.refresh_token_id]);
     const nextRefreshToken = await createRefreshToken(user.id, client);
     await client.query('COMMIT');
+    transactionOpen = false;
 
     setRefreshCookie(res, nextRefreshToken);
     res.json({ token: makeAccessToken(user) });
   } catch (err) {
-    await client.query('ROLLBACK');
+    if (transactionOpen) {
+      try {
+        await client.query('ROLLBACK');
+      } catch (rollbackError) {
+        console.error('Refresh rollback failed:', rollbackError);
+      }
+    }
     console.error(err);
     res.status(500).json({ error: 'Server error' });
   } finally {
