@@ -4,19 +4,27 @@ import { api } from '../../utils/api';
 import { COLORS } from '../../constants/setupOptions';
 
 export default function RoomPanel({ room, onClose, players, setPlayers }) {
-  if (!room) return null;
-
-  const [liveRoom, setLiveRoom] = useState(room);
+  const [liveRoom, setLiveRoom] = useState(room || null);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [timeLeft, setTimeLeft] = useState('');
   const pollRef = useRef(null);
-  const roomCode = room.code;
-  const expiresAt = room.expires_at;
-  const hostId = room.host_id;
-
-  const joinUrl = `${window.location.origin}/join/${roomCode}`;
+  const roomCode = room?.code || liveRoom?.code || null;
+  const expiresAt = room?.expires_at || liveRoom?.expires_at || null;
+  const hostId = room?.host_id || liveRoom?.host_id || null;
 
   useEffect(() => {
+    setLiveRoom(room || null);
+  }, [room]);
+
+  useEffect(() => {
+    if (!roomCode || !expiresAt) {
+      setQrDataUrl('');
+      setTimeLeft('');
+      return undefined;
+    }
+
+    const joinUrl = `${window.location.origin}/join/${roomCode}`;
+
     QRCode.toDataURL(joinUrl, {
       width: 200,
       margin: 2,
@@ -25,7 +33,7 @@ export default function RoomPanel({ room, onClose, players, setPlayers }) {
 
     pollRef.current = setInterval(async () => {
       try {
-        const updatedRoom = await api.getRoom(room.code);
+        const updatedRoom = await api.getRoom(roomCode);
         setLiveRoom(updatedRoom);
       } catch (err) {
         console.warn('Room poll failed:', err.message);
@@ -50,7 +58,9 @@ export default function RoomPanel({ room, onClose, players, setPlayers }) {
       clearInterval(pollRef.current);
       clearInterval(timerRef);
     };
-  }, [joinUrl, roomCode, expiresAt]);
+  }, [roomCode, expiresAt]);
+
+  if (!roomCode) return null;
 
   function addMember(member) {
     if (players.some(player => player.userId === member.id)) return;
