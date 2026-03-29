@@ -353,7 +353,7 @@
 
 .profile-mobile-signout {
   text-align: center;
-  padding: 16px 0 8px;
+  padding: 16px 0 calc(var(--nav-h) + 24px);
 }
 
 .profile-mobile-signout button {
@@ -363,4 +363,10 @@
   font-size: 11px;
   cursor: pointer;
   text-decoration: underline;
+}
+
+@media (min-width: 768px) {
+  .profile-mobile-signout {
+    padding-bottom: 8px;
+  }
 }
