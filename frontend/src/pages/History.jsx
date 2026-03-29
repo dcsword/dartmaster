@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import Layout from '../components/Layout';
+import { GuestSessionStore } from '../utils/guestSessions';
 
 export default function History() {
   const navigate = useNavigate();
@@ -16,10 +17,10 @@ export default function History() {
       ids.push(user.id);
     } else {
       try {
-        const g = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
-        ids.push(...g);
+        const guestId = GuestSessionStore.getCurrentGuestId();
+        if (guestId) ids.push(guestId);
       } catch (err) {
-        console.warn('Could not read guest history ids:', err.message);
+        console.warn('Could not read current guest history id:', err.message);
       }
     }
     api.getHistory(30, ids)
@@ -48,7 +49,7 @@ export default function History() {
     <Layout>
       <div className="page with-nav">
         <h1 style={{ fontFamily: 'Barlow Condensed', fontSize: '48px', fontWeight: 800, color: 'var(--text)', lineHeight: 0.9, marginBottom: '6px' }}>HISTORY</h1>
-        <p className="label-xs" style={{ marginBottom: '24px' }}>{user ? `Games for ${user.name}` : 'Games on this device'}</p>
+        <p className="label-xs" style={{ marginBottom: '24px' }}>{user ? `Games for ${user.name}` : 'Games for this guest'}</p>
 
         {loading && <div style={{ color: 'var(--muted)', padding: '40px 0', textAlign: 'center' }}>Loading...</div>}
         {!loading && games.length === 0 && (

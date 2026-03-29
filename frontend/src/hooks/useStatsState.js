@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
+import { GuestSessionStore } from '../utils/guestSessions';
 
 function readGuestUserId() {
   try {
-    const ids = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
-    return ids[0] || null;
+    return GuestSessionStore.getCurrentGuestId();
   } catch (err) {
     console.warn('Could not read guest stats identity:', err.message);
     return null;
