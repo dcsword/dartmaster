@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import '../styles/login.css';
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -108,8 +109,8 @@ export default function Login() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg)' }}>
-      <div style={{ width: '100%', maxWidth: '380px' }}>
+    <div className="login-page">
+      <div className="login-page-inner">
 
         {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '36px' }}>

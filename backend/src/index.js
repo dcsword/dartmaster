@@ -20,15 +20,28 @@ app.use(helmet({
   contentSecurityPolicy: false,     // managed by Vercel on the frontend
 }));
 
-// ── CORS — localhost only in development (#9) ────────────────────────────────
-const allowed = [process.env.FRONTEND_URL].filter(Boolean);
+function localOrigins() {
+  return [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    'http://[::1]:5173',
+    'http://localhost:3000',
+    'http://127.0.0.1:3000',
+    'http://[::1]:3000',
+  ];
+}
+
+// ── CORS — allow configured frontend plus common local dev origins ───────────
+const allowed = new Set([process.env.FRONTEND_URL].filter(Boolean));
 if (process.env.NODE_ENV !== 'production') {
-  allowed.push('http://localhost:5173', 'http://localhost:3000');
+  for (const origin of localOrigins()) {
+    allowed.add(origin);
+  }
 }
 
 app.use(cors({
   origin: function(origin, callback) {
-    if (!origin || allowed.includes(origin)) {
+    if (!origin || allowed.has(origin)) {
       callback(null, true);
     } else {
       console.log('Blocked origin:', origin);

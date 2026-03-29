@@ -1,10 +1,12 @@
 export default function JoinRoomForm({
   user,
   code,
+  guestName,
   loading,
   error,
   scanning,
   onCodeChange,
+  onGuestNameChange,
   onJoin,
   onLogin,
   onStartScanner,
@@ -20,7 +22,18 @@ export default function JoinRoomForm({
 
       {!user && (
         <div className="join-room-warning">
-          You must be <span className="join-room-link" onClick={onLogin}>signed in</span> to join a room
+          Join as a guest with your name, or <span className="join-room-link" onClick={onLogin}>sign in</span> to use your account
+        </div>
+      )}
+
+      {!user && (
+        <div className="join-room-input-wrap">
+          <input
+            placeholder="Your name"
+            value={guestName}
+            maxLength={30}
+            onChange={event => onGuestNameChange(event.target.value)}
+          />
         </div>
       )}
 
@@ -37,8 +50,8 @@ export default function JoinRoomForm({
 
       {error && <p className="join-room-error">{error}</p>}
 
-      <button className="btn-primary join-room-primary" onClick={() => onJoin()} disabled={loading || !user}>
-        {loading ? 'Joining...' : 'Join Room'}
+      <button className="btn-primary join-room-primary" onClick={() => onJoin()} disabled={loading}>
+        {loading ? 'Joining...' : user ? 'Join Room' : 'Join as Guest'}
       </button>
 
       <div className="join-room-divider">
@@ -48,7 +61,7 @@ export default function JoinRoomForm({
       </div>
 
       {!scanning ? (
-        <button className="btn-ghost join-room-scan-button" onClick={onStartScanner} disabled={!user}>
+        <button className="btn-ghost join-room-scan-button" onClick={onStartScanner}>
           📷 Scan QR Code
         </button>
       ) : (

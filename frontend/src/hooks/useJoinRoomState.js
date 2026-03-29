@@ -1,5 +1,24 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../utils/api';
+import { GuestSessionStore } from '../utils/guestSessions';
+
+const LAST_GUEST_NAME_KEY = 'dm_last_guest_name';
+
+function readLastGuestName() {
+  try {
+    return localStorage.getItem(LAST_GUEST_NAME_KEY) || '';
+  } catch {
+    return '';
+  }
+}
+
+function saveLastGuestName(name) {
+  try {
+    localStorage.setItem(LAST_GUEST_NAME_KEY, name);
+  } catch (err) {
+    console.warn('Could not save guest name:', err.message);
+  }
+}
 
 function rememberJoinedUserId(joiningUserId) {
   if (!joiningUserId) return;
@@ -16,6 +35,7 @@ function rememberJoinedUserId(joiningUserId) {
 
 export function useJoinRoomState(codeFromUrl, user) {
   const [code, setCode] = useState(codeFromUrl || '');
+  const [guestName, setGuestName] = useState(() => readLastGuestName());
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [scanning, setScanning] = useState(false);
@@ -41,15 +61,11 @@ export function useJoinRoomState(codeFromUrl, user) {
       return;
     }
 
-    if (!user) {
-      setError('You must be signed in to join a room');
-      return;
-    }
-
     setLoading(true);
     setError('');
     try {
-      const room = await api.joinRoom(joinCode);
+      const joinOptions = await buildJoinOptions(user, guestName);
+      const room = await api.joinRoom(joinCode, joinOptions);
       rememberJoinedUserId(room.joiningUserId);
       setJoined(room);
     } catch (err) {
@@ -89,13 +105,35 @@ export function useJoinRoomState(codeFromUrl, user) {
 
   return {
     code,
+    guestName,
     loading,
     error,
     scanning,
     joined,
     setCode,
+    setGuestName,
     handleJoin,
     startScanner,
     stopScanner,
   };
+}
+
+async function buildJoinOptions(user, guestName) {
+  if (user) return undefined;
+
+  const trimmedGuestName = guestName.trim();
+  if (!trimmedGuestName) {
+    throw new Error('Enter your name to join as a guest');
+  }
+
+  const response = await api.register({
+    name: trimmedGuestName,
+    email: `guest_${Date.now()}_${Math.random()}@guest.local`,
+  });
+
+  GuestSessionStore.saveGuestSession(response.user.id, response.token);
+  GuestSessionStore.rememberGuestName(trimmedGuestName, response.user.id);
+  saveLastGuestName(trimmedGuestName);
+
+  return { authToken: response.token, skipAuthRefresh: true };
 }

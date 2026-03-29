@@ -42,6 +42,7 @@ export function AuthProvider({ children }) {
   // We do this lazily to avoid circular imports
   const [user, setUser] = useState(() => readStoredJson('dm_user', 'null'));
   const refreshInFlight = useRef(null);
+  const didRestoreSession = useRef(false);
 
   function login(userData, token) {
     setAccessToken(token);
@@ -74,8 +75,9 @@ export function AuthProvider({ children }) {
         return refreshPayload.token;
       } catch (err) {
         console.warn('Access token refresh failed:', err.message);
-        // Refresh failed — log out
-        logout();
+        if (err.code === 'REFRESH_REQUIRED' || err.code === 'INVALID_REFRESH_TOKEN' || err.code === 'REFRESH_TOKEN_EXPIRED') {
+          logout();
+        }
         return null;
       } finally {
         refreshInFlight.current = null;
@@ -91,6 +93,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   useEffect(() => {
+    if (didRestoreSession.current) return;
+    didRestoreSession.current = true;
+
     if (!user) {
       setAccessToken(null);
       return;
@@ -99,7 +104,7 @@ export function AuthProvider({ children }) {
     refreshAccessToken().catch(err => {
       console.warn('Initial session refresh failed:', err.message);
     });
-  }, [user]);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, login, logout, applyTheme, refreshAccessToken }}>
