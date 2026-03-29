@@ -48,6 +48,10 @@ function reorderItems(items, from, to) {
   return nextItems;
 }
 
+function hasConfiguredPlayer(player) {
+  return !!(player?.userId || player?.name?.trim());
+}
+
 export function useSetupState(user) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -224,7 +228,7 @@ export function useSetupState(user) {
   }
 
   async function buildSinglesPayload() {
-    const filledPlayers = players.filter(player => player.name.trim());
+    const filledPlayers = players.filter(hasConfiguredPlayer);
     if (filledPlayers.length < 1) throw new Error('Add at least 1 player');
 
     const playerIds = await Promise.all(filledPlayers.map(resolvePlayerId));
@@ -235,11 +239,13 @@ export function useSetupState(user) {
   }
 
   async function buildTeamsPayload() {
-    const filledTeams = teams.filter(team => team.name.trim() && team.players.some(player => player.name.trim()));
+    const filledTeams = teams.filter(
+      team => team.name.trim() && team.players.some(hasConfiguredPlayer)
+    );
     if (filledTeams.length < 2) throw new Error('Add at least 2 teams');
 
     return Promise.all(filledTeams.map(async team => {
-      const filledPlayers = team.players.filter(player => player.name.trim());
+      const filledPlayers = team.players.filter(hasConfiguredPlayer);
       if (filledPlayers.length !== 2) {
         throw new Error(`Team "${team.name}" needs exactly 2 players`);
       }
