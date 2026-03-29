@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../utils/api';
+import { api, getAccessToken } from '../utils/api';
 import { GameAccess } from '../utils/gameAccess';
 
 function buildTurnOptions(gameId, game, player) {
-  const authToken = GameAccess.getCurrentTurnToken(game, player) || GameAccess.getViewToken(gameId);
+  const currentSessionToken = getAccessToken();
+  const authToken = GameAccess.getCurrentTurnToken(game, player)
+    || (!currentSessionToken ? GameAccess.getViewToken(gameId) : null);
   return authToken ? { authToken } : undefined;
 }
 
@@ -23,7 +25,7 @@ export function useGameState(gameId) {
   const [legResult, setLegResult] = useState(null);
 
   function getViewOptions() {
-    const authToken = GameAccess.getViewToken(gameId);
+    const authToken = getAccessToken() ? null : GameAccess.getViewToken(gameId);
     return authToken ? { authToken } : undefined;
   }
 
@@ -88,8 +90,8 @@ export function useGameState(gameId) {
   useEffect(() => {
     refreshGame()
       .then(() => setLoading(false))
-      .catch(() => {
-        setError('Game not found');
+      .catch(err => {
+        setError(err.message || 'Game not found');
         setLoading(false);
       });
   }, [gameId]);
