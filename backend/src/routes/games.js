@@ -25,7 +25,7 @@ router.post('/', optionalAuth, async (req, res) => {
   const client = await getClient();
   try {
     await client.query('BEGIN');
-    const game = await createGame(client, req.body);
+    const game = await createGame(client, req.body, req.user?.id);
     await client.query('COMMIT');
     res.status(201).json(game);
   } catch (err) {

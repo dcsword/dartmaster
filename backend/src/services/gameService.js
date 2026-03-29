@@ -47,6 +47,22 @@ function validateParticipants(mode, players, teams) {
   });
 }
 
+function ensureCreatorIncluded(mode, players, teams, creatorUserId) {
+  if (!creatorUserId) return;
+
+  if (mode === 'singles') {
+    if (!players.includes(creatorUserId)) {
+      throw createClientError('You must include yourself in a live singles game');
+    }
+    return;
+  }
+
+  const creatorIncluded = teams.some(team => team.players.includes(creatorUserId));
+  if (!creatorIncluded) {
+    throw createClientError('You must place yourself on a team before starting this game');
+  }
+}
+
 async function requireActiveGameAccess(client, gameId, userId) {
   if (!userId) {
     throw createClientError('Sign in or join as a guest to access this live game', 401);
@@ -149,7 +165,7 @@ async function handleLegWin(client, game, currentLeg, playerId, teamId, scoreBef
   return progress;
 }
 
-export async function createGame(client, payload) {
+export async function createGame(client, payload, creatorUserId = null) {
   const {
     mode = 'singles',
     ruleset = 'double_out',
@@ -162,6 +178,7 @@ export async function createGame(client, payload) {
 
   validateGamePayload({ mode, ruleset, format });
   validateParticipants(mode, players, teams);
+  ensureCreatorIncluded(mode, players, teams, creatorUserId);
 
   const game = await gameRepository.createGameRecord(client, {
     mode,
