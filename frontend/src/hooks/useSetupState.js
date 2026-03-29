@@ -264,6 +264,9 @@ export function useSetupState(user) {
 
       if (mode === 'singles') {
         const singlePlayers = await buildSinglesPayload();
+        if (!user && singlePlayers[0]) {
+          GuestSessionStore.setCurrentGuestId(singlePlayers[0]);
+        }
         if (roomCode) {
           await closeRoomByCode(roomCode, 'Room close after singles start failed');
           setRoom(null);
@@ -281,6 +284,9 @@ export function useSetupState(user) {
         navigate(`/game/${game.id}`);
       } else {
         const teamData = await buildTeamsPayload();
+        if (!user && teamData[0]?.players?.[0]) {
+          GuestSessionStore.setCurrentGuestId(teamData[0].players[0]);
+        }
         if (roomCode) {
           await closeRoomByCode(roomCode, 'Room close after teams start failed');
           setRoom(null);

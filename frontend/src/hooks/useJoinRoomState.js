@@ -22,15 +22,7 @@ function saveLastGuestName(name) {
 
 function rememberJoinedUserId(joiningUserId) {
   if (!joiningUserId) return;
-  try {
-    const stored = JSON.parse(localStorage.getItem('dm_guest_ids') || '[]');
-    if (!stored.includes(joiningUserId)) {
-      stored.push(joiningUserId);
-      localStorage.setItem('dm_guest_ids', JSON.stringify(stored.slice(-20)));
-    }
-  } catch (err) {
-    console.warn('Could not remember joined user id:', err.message);
-  }
+  GuestSessionStore.setCurrentGuestId(joiningUserId);
 }
 
 export function useJoinRoomState(codeFromUrl, user) {
@@ -132,6 +124,7 @@ async function buildJoinOptions(user, guestName) {
   });
 
   GuestSessionStore.saveGuestSession(response.user.id, response.token);
+  GuestSessionStore.setCurrentGuestId(response.user.id);
   GuestSessionStore.rememberGuestName(trimmedGuestName, response.user.id);
   saveLastGuestName(trimmedGuestName);
 
