@@ -27,7 +27,7 @@ export const GameAccess = {
   },
 
   getCurrentTurnToken(game, currentPlayer) {
-    if (!currentPlayer?.id) return this.getViewToken(game?.id);
-    return GuestSessionStore.getGuestToken(currentPlayer.id) || this.getViewToken(game?.id);
+    if (!currentPlayer?.id) return null;
+    return GuestSessionStore.getGuestToken(currentPlayer.id) || null;
   },
 };

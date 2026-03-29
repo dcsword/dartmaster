@@ -178,7 +178,9 @@ export async function createGame(client, payload) {
   }
 
   await gameRepository.createInitialLeg(client, game);
-  return getGameState(game.id);
+  // The route commits after this function returns, so we only return data that
+  // is guaranteed to exist inside the current transaction.
+  return { id: game.id };
 }
 
 export async function getGameState(gameId) {
