@@ -4,12 +4,17 @@ import { api } from '../../utils/api';
 import { COLORS } from '../../constants/setupOptions';
 
 export default function RoomPanel({ room, onClose, players, setPlayers }) {
+  if (!room) return null;
+
   const [liveRoom, setLiveRoom] = useState(room);
   const [qrDataUrl, setQrDataUrl] = useState('');
   const [timeLeft, setTimeLeft] = useState('');
   const pollRef = useRef(null);
+  const roomCode = room.code;
+  const expiresAt = room.expires_at;
+  const hostId = room.host_id;
 
-  const joinUrl = `${window.location.origin}/join/${room.code}`;
+  const joinUrl = `${window.location.origin}/join/${roomCode}`;
 
   useEffect(() => {
     QRCode.toDataURL(joinUrl, {
@@ -28,7 +33,7 @@ export default function RoomPanel({ room, onClose, players, setPlayers }) {
     }, 3000);
 
     function tick() {
-      const diff = new Date(room.expires_at) - new Date();
+      const diff = new Date(expiresAt) - new Date();
       if (diff <= 0) {
         setTimeLeft('Expired');
         return;
@@ -45,7 +50,7 @@ export default function RoomPanel({ room, onClose, players, setPlayers }) {
       clearInterval(pollRef.current);
       clearInterval(timerRef);
     };
-  }, [joinUrl, room.code, room.expires_at]);
+  }, [joinUrl, roomCode, expiresAt]);
 
   function addMember(member) {
     if (players.some(player => player.userId === member.id)) return;
@@ -83,7 +88,7 @@ export default function RoomPanel({ room, onClose, players, setPlayers }) {
       <div className="setup-room-header">
         <div>
           <p className="setup-subcopy" style={{ marginBottom: '4px' }}>ROOM CODE</p>
-          <div className="setup-room-code">{room.code}</div>
+          <div className="setup-room-code">{roomCode}</div>
         </div>
         <div className="setup-room-expiry">
           <p className="setup-muted-copy" style={{ marginBottom: '2px' }}>Expires in</p>
@@ -100,13 +105,13 @@ export default function RoomPanel({ room, onClose, players, setPlayers }) {
 
       <div className="setup-room-members">
         <p className="setup-subcopy">
-          IN ROOM ({liveRoom.members.length})
-          {liveRoom.members.length === 1 && <span className="setup-muted-copy" style={{ marginLeft: '8px' }}>· waiting for friends...</span>}
+          IN ROOM ({liveRoom?.members?.length || 0})
+          {(liveRoom?.members?.length || 0) === 1 && <span className="setup-muted-copy" style={{ marginLeft: '8px' }}>· waiting for friends...</span>}
         </p>
 
-        {liveRoom.members.map(member => {
+        {(liveRoom?.members || []).map(member => {
           const alreadyAdded = players.some(player => player.userId === member.id);
-          const isHost = member.id === room.host_id;
+          const isHost = member.id === hostId;
 
           return (
             <div key={member.id} className="setup-room-member">

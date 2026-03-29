@@ -252,9 +252,14 @@ export function useSetupState(user) {
     setLoading(true);
 
     try {
+      const roomCode = room?.code;
+
       if (mode === 'singles') {
         const singlePlayers = await buildSinglesPayload();
-        if (room) await closeRoomByCode(room.code, 'Room close after singles start failed');
+        if (roomCode) {
+          await closeRoomByCode(roomCode, 'Room close after singles start failed');
+          setRoom(null);
+        }
 
         const game = await api.createGame({
           mode: 'singles',
@@ -268,7 +273,10 @@ export function useSetupState(user) {
         navigate(`/game/${game.id}`);
       } else {
         const teamData = await buildTeamsPayload();
-        if (room) await closeRoomByCode(room.code, 'Room close after teams start failed');
+        if (roomCode) {
+          await closeRoomByCode(roomCode, 'Room close after teams start failed');
+          setRoom(null);
+        }
 
         const game = await api.createGame({
           mode: 'teams',
