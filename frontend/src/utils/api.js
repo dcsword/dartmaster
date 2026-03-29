@@ -28,7 +28,8 @@ async function request(method, path, body, options = {}) {
   let data = {};
   if (text) {
     try {
-      data = JSON.parse(text);
+      const parsed = JSON.parse(text);
+      data = parsed ?? {};
     } catch {
       data = { error: text };
     }
@@ -36,7 +37,7 @@ async function request(method, path, body, options = {}) {
 
   // Auto-refresh on expired token (once)
   const shouldAttemptRefresh = !skipAuthRefresh && !isRetry && _refreshFn && !authToken && (
-    data.code === 'TOKEN_EXPIRED' || (res.status === 401 && !token)
+    data?.code === 'TOKEN_EXPIRED' || (res.status === 401 && !token)
   );
   if (!res.ok && shouldAttemptRefresh) {
     const newToken = await _refreshFn();
@@ -44,9 +45,9 @@ async function request(method, path, body, options = {}) {
   }
 
   if (!res.ok) {
-    const error = new Error(data.error || 'Request failed');
+    const error = new Error(data?.error || 'Request failed');
     error.status = res.status;
-    error.code = data.code || null;
+    error.code = data?.code || null;
     throw error;
   }
   return data;
