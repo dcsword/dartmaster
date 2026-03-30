@@ -96,5 +96,3 @@ export const api = {
   getRoom:    (code) => request('GET', `/rooms/${code}`),
   closeRoom:  (code) => request('DELETE', `/rooms/${code}`),
 };
-
-export default API_BASE;
