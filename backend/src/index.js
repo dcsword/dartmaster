@@ -33,6 +33,9 @@ function localOrigins() {
 
 // ── CORS — allow configured frontend plus common local dev origins ───────────
 const allowed = new Set([process.env.FRONTEND_URL].filter(Boolean));
+// Capacitor native app origins
+allowed.add('capacitor://localhost');
+allowed.add('https://localhost');
 if (process.env.NODE_ENV !== 'production') {
   for (const origin of localOrigins()) {
     allowed.add(origin);
