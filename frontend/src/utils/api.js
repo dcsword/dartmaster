@@ -1,10 +1,9 @@
 import { Capacitor } from '@capacitor/core';
 
-const API_BASE = Capacitor.isNativePlatform()
-  ? 'https://dartmaster-production.up.railway.app'  // your production API
-  : '';  // on web, relative paths work fine with the proxy
+const BASE = Capacitor.isNativePlatform()
+  ? 'https://dartmaster-production.up.railway.app/api'
+  : (import.meta.env.VITE_API_URL || '/api');
 
-const BASE = import.meta.env.VITE_API_URL || '/api';
 let accessToken = null;
 
 function getToken() {
