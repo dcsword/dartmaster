@@ -5,7 +5,8 @@ export default defineConfig({
   plugins: [react()],
   base: './',
   server: {
-    host: '0.0.0.0',  // allows access from your phone on the same Wi-Fi
+    host: '0.0.0.0',
+    port: 5173,  // allows access from your phone on the same Wi-Fi
     proxy: {
       '/api': 'http://localhost:3001'
     }
