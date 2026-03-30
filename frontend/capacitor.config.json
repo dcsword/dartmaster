@@ -1,0 +1,23 @@
+{
+  "appId": "com.dartscorer501.app",
+  "appName": "501 Dart Scorer",
+  "webDir": "dist",
+  "server": {
+    "url": "http://127.0.0.1:5173",
+    "androidScheme": "https",
+    "iosScheme": "https"
+  },
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchAutoHide": true,
+      "launchShowDuration": 2000,
+      "backgroundColor": "#1a1a2e"
+    },
+    "StatusBar": {
+      "style": "DARK"
+    }
+  }
+}

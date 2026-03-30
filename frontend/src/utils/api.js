@@ -1,3 +1,9 @@
+import { Capacitor } from '@capacitor/core';
+
+const API_BASE = Capacitor.isNativePlatform()
+  ? 'https://dartmaster-production.up.railway.app'  // your production API
+  : '';  // on web, relative paths work fine with the proxy
+
 const BASE = import.meta.env.VITE_API_URL || '/api';
 let accessToken = null;
 
@@ -91,3 +97,5 @@ export const api = {
   getRoom:    (code) => request('GET', `/rooms/${code}`),
   closeRoom:  (code) => request('DELETE', `/rooms/${code}`),
 };
+
+export default API_BASE;
